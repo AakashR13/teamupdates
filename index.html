@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Updates Aggregator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-1">Team Updates Aggregator</h1>
+                        <p class="text-muted mb-0">Collect and summarize team updates for leadership</p>
+                    </div>
+                    <button id="config-btn" class="btn btn-outline-primary">
+                        <i class="bi bi-gear"></i> Configure LLM
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Update Input Section -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-plus-circle text-primary"></i> Add Team Update
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="update-form">
+                            <div class="mb-3">
+                                <label for="team-name" class="form-label">Team Name</label>
+                                <input type="text" class="form-control" id="team-name" required 
+                                       placeholder="e.g., Engineering, Marketing, Sales">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="update-period" class="form-label">Update Period</label>
+                                <select class="form-select" id="update-period" required>
+                                    <option value="">Select period...</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="update-content" class="form-label">Update Content</label>
+                                <textarea class="form-control" id="update-content" rows="6" required
+                                          placeholder="Enter team accomplishments, challenges, and next steps..."></textarea>
+                                <div class="form-text">Include key achievements, blockers, and upcoming priorities</div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <span class="submit-text">Add Update</span>
+                                <span class="submit-spinner spinner-border spinner-border-sm d-none ms-2"></span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Updates List & Summary Section -->
+            <div class="col-lg-6">
+                <div class="row">
+                    <!-- Current Updates -->
+                    <div class="col-12 mb-4">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="bi bi-list-ul text-success"></i> Current Updates
+                                </h5>
+                                <div>
+                                    <button id="clear-updates-btn" class="btn btn-sm btn-outline-danger me-2">
+                                        <i class="bi bi-trash"></i> Clear All
+                                    </button>
+                                    <span class="badge bg-primary" id="update-count">0</span>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div id="updates-list" class="list-group list-group-flush">
+                                    <div class="list-group-item text-muted text-center py-4">
+                                        <i class="bi bi-inbox display-6 d-block mb-2"></i>
+                                        No updates added yet
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Generate Summary -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="bi bi-file-text text-warning"></i> Leadership Summary
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">Generate an executive summary of all team updates</p>
+                                <button id="generate-summary-btn" class="btn btn-warning w-100" disabled>
+                                    <span class="summary-text">Generate Summary</span>
+                                    <span class="summary-spinner spinner-border spinner-border-sm d-none ms-2"></span>
+                                </button>
+                                <div id="summary-content" class="mt-3 d-none">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <div id="summary-text"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Alert -->
+    <div id="error-alert" class="position-fixed top-0 start-50 translate-middle-x mt-3 d-none" style="z-index: 1050;">
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span id="error-message"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+
+    <!-- Success Alert -->
+    <div id="success-alert" class="position-fixed top-0 start-50 translate-middle-x mt-3 d-none" style="z-index: 1050;">
+        <div class="alert alert-success alert-dismissible" role="alert">
+            <i class="bi bi-check-circle-fill"></i>
+            <span id="success-message"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
