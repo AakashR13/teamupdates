@@ -8,120 +8,87 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-    <div class="container-fluid py-4">
+    <div class="container-fluid py-3">
         <!-- Header -->
         <div class="row mb-4">
             <div class="col">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h1 class="h3 mb-1">Team Updates Aggregator</h1>
-                        <p class="text-muted mb-0">Collect and summarize team updates for leadership</p>
+                        <div class="d-flex align-items-center mb-2">
+                            <h1 class="h4 mb-0" id="page-title" style="cursor: pointer;" title="Click to return to start">Team Updates Aggregator</h1>
+                        </div>
                     </div>
-                    <button id="config-btn" class="btn btn-outline-primary">
-                        <i class="bi bi-gear"></i> Configure LLM
-                    </button>
+                    <div class="d-flex align-items-center">
+                        <!-- Status Indicators -->
+                        <div class="me-3">
+                            <span class="badge bg-danger me-1">●</span><small class="me-2">Blocked</small>
+                            <span class="badge bg-warning me-1">●</span><small class="me-2">Behind</small>
+                            <span class="badge bg-success me-1">●</span><small class="me-2">Completed</small>
+                        </div>
+                        <!-- Status Badges -->
+                        <div class="me-3">
+                            <span class="badge bg-secondary me-1">➖ Not Started</span>
+                            <span class="badge bg-success me-1">✓ Cost</span>
+                            <span class="badge bg-success me-1">✓ Resource</span>
+                            <span class="badge bg-success me-1">✓ Scope</span>
+                            <span class="badge bg-success me-1">➤ Completed</span>
+                        </div>
+                        <button id="config-btn" class="btn btn-outline-primary ms-3">
+                            <i class="bi bi-gear"></i> Configure LLM
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="row">
-            <!-- Update Input Section -->
-            <div class="col-lg-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-plus-circle text-primary"></i> Add Team Update
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="update-form">
-                            <div class="mb-3">
-                                <label for="team-name" class="form-label">Team Name</label>
-                                <input type="text" class="form-control" id="team-name" required 
-                                       placeholder="e.g., Engineering, Marketing, Sales">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="update-period" class="form-label">Update Period</label>
-                                <select class="form-select" id="update-period" required>
-                                    <option value="">Select period...</option>
-                                    <option value="daily">Daily</option>
-                                    <option value="weekly">Weekly</option>
-                                    <option value="monthly">Monthly</option>
-                                    <option value="quarterly">Quarterly</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="update-content" class="form-label">Update Content</label>
-                                <textarea class="form-control" id="update-content" rows="6" required
-                                          placeholder="Enter team accomplishments, challenges, and next steps..."></textarea>
-                                <div class="form-text">Include key achievements, blockers, and upcoming priorities</div>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary">
-                                <span class="submit-text">Add Update</span>
-                                <span class="submit-spinner spinner-border spinner-border-sm d-none ms-2"></span>
-                            </button>
-                        </form>
+        <!-- Main Content Container -->
+        <div id="main-content">
+            <!-- Initial Center Form -->
+            <div id="initial-form" class="row justify-content-center">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white text-center">
+                            <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Add Team Update</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="update-form">
+                                <div class="mb-3">
+                                    <label for="team-name" class="form-label fw-bold">Team Name</label>
+                                    <input type="text" class="form-control" id="team-name" required 
+                                           placeholder="e.g., Engineering, Marketing, Sales">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="update-period" class="form-label fw-bold">Update Period</label>
+                                    <select class="form-select" id="update-period" required>
+                                        <option value="">Select period...</option>
+                                        <option value="daily">Daily</option>
+                                        <option value="weekly">Weekly</option>
+                                        <option value="monthly">Monthly</option>
+                                        <option value="quarterly">Quarterly</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="update-content" class="form-label fw-bold">Update Content</label>
+                                    <textarea class="form-control" id="update-content" rows="6" required
+                                              placeholder="Enter team accomplishments, challenges, and next steps..."></textarea>
+                                    <div class="form-text">Include key achievements, blockers, and upcoming priorities</div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <span class="submit-text">Add Update</span>
+                                    <span class="submit-spinner spinner-border spinner-border-sm d-none ms-2"></span>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Updates List & Summary Section -->
-            <div class="col-lg-6">
-                <div class="row">
-                    <!-- Current Updates -->
-                    <div class="col-12 mb-4">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="card-title mb-0">
-                                    <i class="bi bi-list-ul text-success"></i> Current Updates
-                                </h5>
-                                <div>
-                                    <button id="clear-updates-btn" class="btn btn-sm btn-outline-danger me-2">
-                                        <i class="bi bi-trash"></i> Clear All
-                                    </button>
-                                    <span class="badge bg-primary" id="update-count">0</span>
-                                </div>
-                            </div>
-                            <div class="card-body p-0">
-                                <div id="updates-list" class="list-group list-group-flush">
-                                    <div class="list-group-item text-muted text-center py-4">
-                                        <i class="bi bi-inbox display-6 d-block mb-2"></i>
-                                        No updates added yet
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Generate Summary -->
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="bi bi-file-text text-warning"></i> Leadership Summary
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <p class="text-muted">Generate an executive summary of all team updates</p>
-                                <button id="generate-summary-btn" class="btn btn-warning w-100" disabled>
-                                    <span class="summary-text">Generate Summary</span>
-                                    <span class="summary-spinner spinner-border spinner-border-sm d-none ms-2"></span>
-                                </button>
-                                <div id="summary-content" class="mt-3 d-none">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <div id="summary-text"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <!-- Dynamic Dashboard - Initially Hidden -->
+            <div id="dashboard-content" class="d-none">
+                <!-- Dashboard will be rendered here via lit-html -->
             </div>
         </div>
     </div>
@@ -141,6 +108,54 @@
             <i class="bi bi-check-circle-fill"></i>
             <span id="success-message"></span>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+
+    <!-- Add Update Modal -->
+    <div class="modal fade" id="addUpdateModal" tabindex="-1" aria-labelledby="addUpdateModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="addUpdateModalLabel">
+                        <i class="bi bi-plus-circle-fill me-2"></i>Add New Team Update
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="modal-update-form">
+                        <div class="mb-3">
+                            <label for="modal-team-name" class="form-label fw-bold">Team Name</label>
+                            <input type="text" class="form-control" id="modal-team-name" required 
+                                   placeholder="e.g., Engineering, Marketing, Sales">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="modal-update-period" class="form-label fw-bold">Update Period</label>
+                            <select class="form-select" id="modal-update-period" required>
+                                <option value="">Select period...</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="modal-update-content" class="form-label fw-bold">Update Content</label>
+                            <textarea class="form-control" id="modal-update-content" rows="6" required
+                                      placeholder="Enter team accomplishments, challenges, and next steps..."></textarea>
+                            <div class="form-text">Include key achievements, blockers, and upcoming priorities</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="modal-submit-btn" class="btn btn-primary">
+                        <span class="modal-submit-text">Add Update</span>
+                        <span class="modal-submit-spinner spinner-border spinner-border-sm d-none ms-2"></span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

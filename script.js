@@ -1,11 +1,17 @@
 import { openaiConfig } from "https://cdn.jsdelivr.net/npm/bootstrap-llm-provider@1.2";
 import { asyncLLM } from "https://cdn.jsdelivr.net/npm/asyncllm@2";
 import { html, render } from "https://cdn.jsdelivr.net/npm/lit-html@3.1.0/lit-html.js";
+import { unsafeHTML } from "https://cdn.jsdelivr.net/npm/lit-html@3.1.0/directives/unsafe-html.js";
+import { dashboardTemplate } from "./templates.js";
 
 // State management
 const state = {
     llmConfig: JSON.parse(localStorage.getItem('llm-config') || 'null'),
-    updates: JSON.parse(localStorage.getItem('team-updates') || '[]')
+    updates: JSON.parse(localStorage.getItem('team-updates') || '[]'),
+    generatedContent: JSON.parse(localStorage.getItem('generated-content') || 'null'),
+    isGenerating: false,
+    streamingContent: null,
+    prompts: {}
 };
 
 // Utilities
@@ -17,180 +23,174 @@ const showAlert = msg => {
     setTimeout(() => $('success-alert').classList.add('d-none'), 3000);
 };
 
-// UI Updates
+// Load text files
+const loadText = async (path) => {
+    try {
+        const response = await fetch(path);
+        return await response.text();
+    } catch (error) {
+        console.error(`Failed to load ${path}:`, error);
+        return '';
+    }
+};
+
+
 const updateUI = () => {
-    render(html`${state.updates.length}`, $('update-count'));
-    $('generate-summary-btn').disabled = !state.updates.length || !state.llmConfig;
-    
     const configBtn = $('config-btn');
-    if (state.llmConfig) {
-        configBtn.innerHTML = '<i class="bi bi-check-circle"></i> LLM Configured';
-        configBtn.className = 'btn btn-success';
-    } else {
-        configBtn.innerHTML = '<i class="bi bi-gear"></i> Configure LLM';
-        configBtn.className = 'btn btn-outline-primary';
-    }
-};
-
-const setLoading = (elementId, isLoading) => {
-    const element = $(elementId);
-    if (elementId === 'update-form') {
-        const submitBtn = element.querySelector('button[type="submit"]');
-        submitBtn.disabled = isLoading;
-        submitBtn.querySelector('.submit-text').textContent = isLoading ? 'Adding...' : 'Add Update';
-        submitBtn.querySelector('.submit-spinner').classList.toggle('d-none', !isLoading);
-    } else if (elementId === 'generate-summary-btn') {
-        element.disabled = isLoading;
-        element.querySelector('.summary-text').textContent = isLoading ? 'Generating...' : 'Generate Summary';
-        element.querySelector('.summary-spinner').classList.toggle('d-none', !isLoading);
-    } else {
-        element.disabled = isLoading;
-    }
-};
-
-const renderUpdates = () => {
-    const updatesList = $('updates-list');
+    configBtn.innerHTML = state.llmConfig ? '<i class="bi bi-check-circle"></i> LLM Configured' : '<i class="bi bi-gear"></i> Configure LLM';
+    configBtn.className = state.llmConfig ? 'btn btn-success' : 'btn btn-outline-primary';
     
-    if (!state.updates.length) {
-        render(html`<div class="list-group-item text-muted text-center py-4">
-            <i class="bi bi-inbox display-6 d-block mb-2"></i>No updates added yet</div>`, updatesList);
-        return;
+    if (state.updates.length > 0) {
+        $('last-update-date').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
     }
 
-    const updatesHtml = state.updates.map(({ id, teamName, timestamp, period, content }) => `
-        <div class="list-group-item">
-            <div class="d-flex justify-content-between align-items-start">
-                <div class="flex-grow-1">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0">${teamName}</h6>
-                        <small class="text-muted">${new Date(timestamp).toLocaleDateString()}</small>
-                    </div>
-                    <span class="badge bg-secondary mb-2">${period}</span>
-                    <p class="mb-0 small">${content.substring(0, 150)}${content.length > 150 ? '...' : ''}</p>
-                </div>
-                <button class="btn btn-sm btn-outline-danger ms-3" onclick="removeUpdate('${id}')">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-
-    updatesList.innerHTML = updatesHtml;
+    const initialForm = $('initial-form');
+    const dashboardContent = $('dashboard-content');
+    
+    if (state.updates.length === 0) {
+        initialForm.classList.remove('d-none');
+        dashboardContent.classList.add('d-none');
+    } else {
+        initialForm.classList.add('d-none');
+        dashboardContent.classList.remove('d-none');
+        render(dashboardTemplate(state, { clearAllUpdates, showInputForm, generateSummary, removeUpdate }), dashboardContent);
+    }
 };
 
-// Event Handlers
+const showInputForm = () => {
+    if (state.updates.length === 0) {
+        $('initial-form').classList.remove('d-none');
+        $('dashboard-content').classList.add('d-none');
+    } else {
+        // Show modal for adding updates when in dashboard view
+        const modal = new bootstrap.Modal($('addUpdateModal'));
+        modal.show();
+    }
+};
+
 const configureLLM = async (autoShow = false) => {
-    setLoading('config-btn', true);
+    const configBtn = $('config-btn');
+    configBtn.disabled = true;
     
     state.llmConfig = await openaiConfig({
         title: "Configure AI Provider",
-        help: autoShow ? '<div class="alert alert-info"><i class="bi bi-info-circle"></i> Please configure your AI provider to get started with summary generation</div>' : '',
+        help: autoShow ? '<div class="alert alert-info"><i class="bi bi-info-circle"></i> Please configure your AI provider</div>' : '',
         show: autoShow || !state.llmConfig,
         defaultBaseUrls: ["https://api.openai.com/v1", "https://api.anthropic.com/v1", "https://openrouter.ai/api/v1"],
-        storage: localStorage,
-        key: "llm-config",
-        baseUrlLabel: "API Base URL",
-        apiKeyLabel: "API Key",
-        buttonLabel: "Save & Configure"
+        storage: localStorage, key: "llm-config", baseUrlLabel: "API Base URL", apiKeyLabel: "API Key", buttonLabel: "Save & Configure"
     });
     
     save('llm-config', state.llmConfig);
     showAlert('LLM configuration saved successfully');
     updateUI();
-    setLoading('config-btn', false);
+    configBtn.disabled = false;
 };
 
 const handleUpdateSubmit = async e => {
     e.preventDefault();
-    setLoading('update-form', true);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const submitText = submitBtn.querySelector('.submit-text');
+    const submitSpinner = submitBtn.querySelector('.submit-spinner');
+    
+    submitBtn.disabled = true;
+    submitText.textContent = 'Adding...';
+    submitSpinner.classList.remove('d-none');
     
     const [teamName, period, content] = ['team-name', 'update-period', 'update-content'].map(id => $(id).value.trim());
     
     if (!teamName || !period || !content) {
         showAlert('Please fill in all required fields');
-        setLoading('update-form', false);
+        submitBtn.disabled = false;
+        submitText.textContent = 'Add Update';
+        submitSpinner.classList.add('d-none');
         return;
     }
     
-    state.updates.push({
-        id: Date.now().toString(),
-        teamName, period, content,
-        timestamp: new Date().toISOString()
-    });
-
+    state.updates.push({ id: Date.now().toString(), teamName, period, content, timestamp: new Date().toISOString() });
     save('team-updates', state.updates);
-    renderUpdates();
     updateUI();
     e.target.reset();
     
     showAlert('Update added successfully');
-    setLoading('update-form', false);
+    submitBtn.disabled = false;
+    submitText.textContent = 'Add Update';
+    submitSpinner.classList.add('d-none');
 };
 
 const clearAllUpdates = () => {
     if (!state.updates.length || !confirm('Are you sure you want to clear all updates?')) return;
-    
     state.updates = [];
+    state.generatedContent = null;
     save('team-updates', state.updates);
-    renderUpdates();
+    save('generated-content', state.generatedContent);
     updateUI();
     showAlert('All updates cleared');
-    $('summary-content').classList.add('d-none');
 };
 
 const generateSummary = async () => {
-    if (!state.llmConfig || !state.updates.length) return;
-
-    setLoading('generate-summary-btn', true);
-    
-    const summaryContent = $('summary-content');
-    render(html`<div class="text-muted"><i class="bi bi-three-dots"></i> Generating summary...</div>`, $('summary-text'));
-    summaryContent.classList.remove('d-none');
-    summaryContent.scrollIntoView({ behavior: 'smooth' });
-    
+    if (!state.llmConfig || !state.updates.length || state.isGenerating) return;
+    state.isGenerating = true;
+    updateUI();
     await streamLLMResponse();
+    state.isGenerating = false;
+    updateUI();
     showAlert('Summary generated successfully');
-    setLoading('generate-summary-btn', false);
 };
 
 const streamLLMResponse = async () => {
-    let fullContent = '';
-    let previousContent = '';
-    const summaryElement = $('summary-text');
+    let fullContent = '', previousContent = '';
+
+    if (!state.prompts.summaryGeneration) {
+        state.prompts.summaryGeneration = await loadText('./prompts/summary-generation.md');
+    }
 
     const updatesText = state.updates.map(({ teamName, period, timestamp, content }) => 
-        `**Team: ${teamName}** (${period})\nDate: ${new Date(timestamp).toLocaleDateString()}\n${content}\n\n`
-    ).join('');
+        `**Team: ${teamName}** (${period})\nDate: ${new Date(timestamp).toLocaleDateString()}\n${content}\n\n`).join('');
 
-    const prompt = `You are an executive assistant preparing a leadership summary of team updates. 
+    const prompt = state.prompts.summaryGeneration.replace('{{UPDATES_CONTENT}}', updatesText);
 
-Please analyze the following team updates and create a concise executive summary that includes:
-
-1. **Key Highlights**: Most important achievements across all teams
-2. **Cross-Team Themes**: Common patterns, challenges, or opportunities  
-3. **Strategic Insights**: High-level observations for leadership consideration
-4. **Action Items**: Recommended next steps or areas requiring leadership attention
-
-Team Updates:
-${updatesText}
-
-Please format the response in clear sections with bullet points where appropriate. Keep it executive-level - focus on strategic insights rather than operational details. Use markdown formatting - Headings, bold, italic, lists, etc.`;
-
-    const body = {
-        model: 'gpt-5-mini',
-        stream: true,
-        messages: [{ role: 'user', content: prompt }]
-    };
+    state.streamingContent = { summary: '', nextSteps: '', risks: [], milestones: [], pmTeam: '', sponsor: '' };
 
     for await (const { content } of asyncLLM(`${state.llmConfig.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.llmConfig.apiKey}` },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ model: 'gpt-4o', stream: true, messages: [{ role: 'user', content: prompt }] })
     })) {
         if (content) {
             fullContent = content.includes(previousContent) && content.length > previousContent.length ? content : fullContent + content;
             previousContent = fullContent;
-            summaryElement.innerHTML = marked.parse(fullContent);
+            
+            try {
+                const jsonMatch = fullContent.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const jsonResponse = JSON.parse(jsonMatch[0]);
+                    state.generatedContent = jsonResponse;
+                    save('generated-content', state.generatedContent);
+                    updateUI();
+                }
+            } catch (e) {
+                updatePartialContent(fullContent);
+            }
+        }
+    }
+};
+const updatePartialContent = (content) => {
+    const summaryMatch = content.match(/"summary":\s*"([^"]*(?:\\.[^"]*)*)"/);
+    const nextStepsMatch = content.match(/"nextSteps":\s*"([^"]*(?:\\.[^"]*)*)"/);
+    
+    if (summaryMatch?.[1]) {
+        const summary = summaryMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t');
+        if (summary !== state.generatedContent?.summary) {
+            state.generatedContent = { ...state.generatedContent, summary };
+            updateUI();
+        }
+    }
+    
+    if (nextStepsMatch?.[1]) {
+        const nextSteps = nextStepsMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t');
+        if (nextSteps !== state.generatedContent?.nextSteps) {
+            state.generatedContent = { ...state.generatedContent, nextSteps };
+            updateUI();
         }
     }
 };
@@ -198,29 +198,57 @@ Please format the response in clear sections with bullet points where appropriat
 const removeUpdate = id => {
     state.updates = state.updates.filter(update => update.id !== id);
     save('team-updates', state.updates);
-    renderUpdates();
     updateUI();
     showAlert('Update removed');
 };
 
-// Initialize
-const init = async () => {
-    $('config-btn').addEventListener('click', () => configureLLM(true));
-    $('update-form').addEventListener('submit', handleUpdateSubmit);
-    $('clear-updates-btn').addEventListener('click', clearAllUpdates);
-    $('generate-summary-btn').addEventListener('click', generateSummary);
+const handleModalSubmit = async () => {
+    const submitBtn = $('modal-submit-btn');
+    const submitText = submitBtn.querySelector('.modal-submit-text');
+    const submitSpinner = submitBtn.querySelector('.modal-submit-spinner');
     
-    renderUpdates();
+    submitBtn.disabled = true;
+    submitText.textContent = 'Adding...';
+    submitSpinner.classList.remove('d-none');
+    
+    const [teamName, period, content] = ['modal-team-name', 'modal-update-period', 'modal-update-content'].map(id => $(id).value.trim());
+    
+    if (!teamName || !period || !content) {
+        showAlert('Please fill in all required fields');
+        submitBtn.disabled = false;
+        submitText.textContent = 'Add Update';
+        submitSpinner.classList.add('d-none');
+        return;
+    }
+    
+    state.updates.push({ id: Date.now().toString(), teamName, period, content, timestamp: new Date().toISOString() });
+    save('team-updates', state.updates);
     updateUI();
     
-    // Auto-show LLM config modal if not configured
-    if (!state.llmConfig) {
-        await configureLLM(true);
+    // Reset form and close modal
+    ['modal-team-name', 'modal-update-period', 'modal-update-content'].forEach(id => $(id).value = '');
+    bootstrap.Modal.getInstance($('addUpdateModal')).hide();
+    
+    showAlert('Update added successfully');
+    submitBtn.disabled = false;
+    submitText.textContent = 'Add Update';
+    submitSpinner.classList.add('d-none');
+};
+
+const resetToInitialState = () => {
+    if (confirm('Clear all updates and return to start?')) {
+        ['team-updates', 'generated-content'].forEach(k => localStorage.removeItem(k));
+        location.reload();
     }
 };
 
-// Global function for onclick handlers
-globalThis.removeUpdate = removeUpdate;
+const init = async () => {
+    $('config-btn').addEventListener('click', () => configureLLM(true));
+    $('update-form').addEventListener('submit', handleUpdateSubmit);
+    $('modal-submit-btn').addEventListener('click', handleModalSubmit);
+    $('page-title').addEventListener('click', resetToInitialState);
+    updateUI();
+    if (!state.llmConfig) await configureLLM(true);
+};
 
-// Auto-initialize when DOM is ready
 document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
