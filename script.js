@@ -40,8 +40,10 @@ const updateUI = () => {
     configBtn.innerHTML = state.llmConfig ? '<i class="bi bi-check-circle"></i> LLM Configured' : '<i class="bi bi-gear"></i> Configure LLM';
     configBtn.className = state.llmConfig ? 'btn btn-success' : 'btn btn-outline-primary';
     
-    if (state.updates.length > 0) {
-        $('last-update-date').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+    // Update last update date if element exists
+    const lastUpdateElement = $('last-update-date');
+    if (lastUpdateElement && state.updates.length > 0) {
+        lastUpdateElement.textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
     }
 
     const initialForm = $('initial-form');
@@ -239,6 +241,103 @@ const resetToInitialState = () => {
     if (confirm('Clear all updates and return to start?')) {
         ['team-updates', 'generated-content'].forEach(k => localStorage.removeItem(k));
         location.reload();
+    }
+};
+
+// Show toast notification
+const showToast = (message, type = 'success') => {
+    const toastId = 'copy-toast-' + Date.now();
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    // Create toast container if it doesn't exist
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    
+    // Remove toast element after it's hidden
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+};
+
+// Copy content functionality
+window.copyContent = async (elementId) => {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        showToast('Content not found', 'danger');
+        return;
+    }
+    
+    let textContent = '';
+    let sectionName = '';
+    
+    // Get section name from the card header
+    const card = element.closest('.card');
+    if (card) {
+        const header = card.querySelector('.card-header h6');
+        sectionName = header ? header.textContent.trim() : 'Content';
+    }
+    
+    if (element.tagName === 'TABLE' || element.querySelector('table')) {
+        const table = element.tagName === 'TABLE' ? element : element.querySelector('table');
+        const rows = Array.from(table.querySelectorAll('tr'));
+        textContent = rows.map(row => {
+            const cells = Array.from(row.querySelectorAll('th, td'));
+            return cells.map(cell => cell.textContent.trim()).join('\t');
+        }).join('\n');
+    } else {
+        textContent = element.textContent.trim();
+    }
+    
+    if (!textContent || textContent === 'Generate summary to see next steps' || 
+        textContent === 'Add team updates and generate summary to see content' ||
+        textContent.includes('Generate summary to see')) {
+        showToast('No content available to copy', 'warning');
+        return;
+    }
+    
+    try {
+        await navigator.clipboard.writeText(textContent);
+        showToast(`${sectionName} copied to clipboard!`, 'success');
+        
+        // Find and update the button that was clicked
+        const buttons = document.querySelectorAll('button[title="Copy content"]');
+        for (const btn of buttons) {
+            if (btn.onclick && btn.onclick.toString().includes(elementId)) {
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check"></i>';
+                btn.classList.add('btn-success');
+                btn.classList.remove('btn-outline-secondary');
+                setTimeout(() => {
+                    btn.innerHTML = original;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-secondary');
+                }, 1500);
+                break;
+            }
+        }
+    } catch (err) {
+        console.error('Failed to copy content:', err);
+        showToast('Failed to copy content to clipboard', 'danger');
     }
 };
 

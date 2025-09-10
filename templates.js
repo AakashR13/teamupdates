@@ -1,9 +1,16 @@
 import { html } from "https://cdn.jsdelivr.net/npm/lit-html@3.1.0/lit-html.js";
 import { unsafeHTML } from "https://cdn.jsdelivr.net/npm/lit-html@3.1.0/directives/unsafe-html.js";
 
-export const card = (title, content, headerClass = 'bg-light') => html`
+export const card = (title, content, headerClass = 'bg-light', copyId = null) => html`
     <div class="card mb-3">
-        <div class="card-header ${headerClass}"><h6 class="mb-0"><strong>${title}</strong></h6></div>
+        <div class="card-header ${headerClass}">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><strong>${title}</strong></h6>
+                ${copyId ? html`<button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent(copyId)} title="Copy content">
+                    <i class="bi bi-clipboard"></i>
+                </button>` : ''}
+            </div>
+        </div>
         <div class="card-body">${content}</div>
     </div>
 `;
@@ -88,13 +95,36 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
             </div>
 
             <!-- Coming up/Next Steps Section -->
-            <div class="card">
+            <div class="card mb-3">
                 <div class="card-header bg-light">
-                    <h6 class="mb-0"><strong>Coming up/ Next Steps</strong></h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><strong>Coming up/ Next Steps</strong></h6>
+                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('next-steps')} title="Copy content">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="next-steps-content">
+                    <div id="next-steps" class="next-steps-content">
                         ${state.generatedContent?.nextSteps ? unsafeHTML(marked.parse(state.generatedContent.nextSteps)) : 'Generate summary to see next steps'}
+                    </div>
+                </div>
+            </div>
+
+            <!-- PM/Workstream Lead -->
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><strong>PM/Workstream Lead:</strong></h6>
+                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('pm-team')} title="Copy content">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="pm-team">
+                        <p><strong>Team:</strong> ${state.generatedContent?.pmTeam || 'To be generated'}</p>
+                        <p class="mb-0"><strong>Sponsor:</strong> ${state.generatedContent?.sponsor || 'To be generated'}</p>
                     </div>
                 </div>
             </div>
@@ -105,10 +135,15 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
             <!-- AI Generated Summary -->
             <div class="card mb-3">
                 <div class="card-header bg-light">
-                    <h6 class="mb-0"><strong>Overall Summary/Path to Green/Additional Context:</strong></h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><strong>Overall Summary/Path to Green/Additional Context:</strong></h6>
+                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('summary')} title="Copy content">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="summary-content">
+                    <div id="summary" class="summary-content">
                         ${state.generatedContent?.summary ? unsafeHTML(marked.parse(state.generatedContent.summary)) : 'Add team updates and generate summary to see content'}
                     </div>
                 </div>
@@ -117,10 +152,15 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
             <!-- Key Risks/Issues/Dependencies -->
             <div class="card mb-3">
                 <div class="card-header bg-light">
-                    <h6 class="mb-0"><strong>Key Risks / Issues / Dependencies:</strong></h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><strong>Key Risks / Issues / Dependencies:</strong></h6>
+                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('risks')} title="Copy content">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
+                    <div id="risks" class="table-responsive">
                         <table class="table table-sm table-bordered">
                             <thead class="table-primary">
                                 <tr>
@@ -149,12 +189,17 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
             </div>
 
             <!-- Core Milestone/Change Moments -->
-            <div class="card">
+            <div class="card mb-3">
                 <div class="card-header bg-light">
-                    <h6 class="mb-0"><strong>Core Milestone/Change Moments:</strong></h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><strong>Core Milestone/Change Moments:</strong></h6>
+                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('milestones')} title="Copy content">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
+                    <div id="milestones" class="table-responsive">
                         <table class="table table-sm table-bordered">
                             <thead class="table-primary">
                                 <tr>
@@ -183,31 +228,25 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
     </div>
 
     <!-- Bottom Section -->
-    <div class="row mt-3">
-        <div class="col-lg-6">
-            <!-- PM/Workstream Lead -->
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><strong>PM/Workstream Lead:</strong></h6>
-                </div>
-                <div class="card-body">
-                    <p><strong>Team:</strong> ${state.generatedContent?.pmTeam || 'To be generated'}</p>
-                    <p class="mb-0"><strong>Sponsor:</strong> ${state.generatedContent?.sponsor || 'To be generated'}</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-6">
+    <div class="row">
+        <div class="col-12">
             <!-- Document Links -->
             <div class="card">
                 <div class="card-header bg-light">
-                    <h6 class="mb-0"><strong>Document Links</strong></h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><strong>Document Links</strong></h6>
+                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('document-links')} title="Copy content">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <ul class="list-unstyled mb-0">
-                        <li>• Project Scope/Requirements</li>
-                        <li>• Budget</li>
-                    </ul>
+                    <div id="document-links">
+                        <ul class="list-unstyled mb-0">
+                            <li>• Project Scope/Requirements</li>
+                            <li>• Budget</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
