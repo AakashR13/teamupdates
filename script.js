@@ -17,10 +17,9 @@ const state = {
 // Utilities
 const $ = id => document.getElementById(id);
 const save = (key, data) => localStorage.setItem(key, JSON.stringify(data));
-const showAlert = msg => {
-    render(html`${msg}`, $('success-message'));
-    $('success-alert').classList.remove('d-none');
-    setTimeout(() => $('success-alert').classList.add('d-none'), 3000);
+// Unified notification function (replaces old showAlert)
+const showAlert = (message, type = 'success') => {
+    showToast(message, type);
 };
 
 // Load text files
@@ -39,6 +38,14 @@ const updateUI = () => {
     const configBtn = $('config-btn');
     configBtn.innerHTML = state.llmConfig ? '<i class="bi bi-check-circle"></i> LLM Configured' : '<i class="bi bi-gear"></i> Configure LLM';
     configBtn.className = state.llmConfig ? 'btn btn-success' : 'btn btn-outline-primary';
+    
+    // Update export button visibility
+    const exportBtn = $('export-btn');
+    if (state.updates.length > 0) {
+        exportBtn.style.display = 'inline-block';
+    } else {
+        exportBtn.style.display = 'none';
+    }
     
     // Update last update date if element exists
     const lastUpdateElement = $('last-update-date');
@@ -88,6 +95,29 @@ const configureLLM = async (autoShow = false) => {
     configBtn.disabled = false;
 };
 
+// Shared function for adding updates
+const addUpdate = async (teamName, period, content, isModalForm = false) => {
+    if (!teamName || !period || !content) {
+        showAlert('Please fill in all required fields', 'danger');
+        return false;
+    }
+    
+    const isFirstUpdate = state.updates.length === 0;
+    state.updates.push({ id: Date.now().toString(), teamName, period, content, timestamp: new Date().toISOString() });
+    save('team-updates', state.updates);
+    updateUI();
+    
+    // Auto-generate AI summary when adding updates
+    if (state.llmConfig && !state.isGenerating) {
+        setTimeout(() => {
+            generateSummary();
+        }, 500); // Small delay to ensure UI update is complete
+    }
+    
+    showAlert('Update added successfully');
+    return true;
+};
+
 const handleUpdateSubmit = async e => {
     e.preventDefault();
     const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -100,20 +130,11 @@ const handleUpdateSubmit = async e => {
     
     const [teamName, period, content] = ['team-name', 'update-period', 'update-content'].map(id => $(id).value.trim());
     
-    if (!teamName || !period || !content) {
-        showAlert('Please fill in all required fields');
-        submitBtn.disabled = false;
-        submitText.textContent = 'Add Update';
-        submitSpinner.classList.add('d-none');
-        return;
+    const success = await addUpdate(teamName, period, content);
+    if (success) {
+        e.target.reset();
     }
     
-    state.updates.push({ id: Date.now().toString(), teamName, period, content, timestamp: new Date().toISOString() });
-    save('team-updates', state.updates);
-    updateUI();
-    e.target.reset();
-    
-    showAlert('Update added successfully');
     submitBtn.disabled = false;
     submitText.textContent = 'Add Update';
     submitSpinner.classList.add('d-none');
@@ -215,23 +236,13 @@ const handleModalSubmit = async () => {
     
     const [teamName, period, content] = ['modal-team-name', 'modal-update-period', 'modal-update-content'].map(id => $(id).value.trim());
     
-    if (!teamName || !period || !content) {
-        showAlert('Please fill in all required fields');
-        submitBtn.disabled = false;
-        submitText.textContent = 'Add Update';
-        submitSpinner.classList.add('d-none');
-        return;
+    const success = await addUpdate(teamName, period, content, true);
+    if (success) {
+        // Reset form and close modal
+        ['modal-team-name', 'modal-update-period', 'modal-update-content'].forEach(id => $(id).value = '');
+        bootstrap.Modal.getInstance($('addUpdateModal')).hide();
     }
     
-    state.updates.push({ id: Date.now().toString(), teamName, period, content, timestamp: new Date().toISOString() });
-    save('team-updates', state.updates);
-    updateUI();
-    
-    // Reset form and close modal
-    ['modal-team-name', 'modal-update-period', 'modal-update-content'].forEach(id => $(id).value = '');
-    bootstrap.Modal.getInstance($('addUpdateModal')).hide();
-    
-    showAlert('Update added successfully');
     submitBtn.disabled = false;
     submitText.textContent = 'Add Update';
     submitSpinner.classList.add('d-none');
@@ -241,6 +252,131 @@ const resetToInitialState = () => {
     if (confirm('Clear all updates and return to start?')) {
         ['team-updates', 'generated-content'].forEach(k => localStorage.removeItem(k));
         location.reload();
+    }
+};
+
+// Export to PPTX functionality
+const exportToPPTX = async () => {
+    const exportBtn = $('export-btn');
+    const originalHTML = exportBtn.innerHTML;
+    
+    try {
+        // Show loading state
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Generating...';
+        
+        // Check if dashboard content exists
+        const dashboardContent = $('dashboard-content');
+        if (!dashboardContent || dashboardContent.classList.contains('d-none')) {
+            showToast('No dashboard content to export. Please add updates first.', 'warning');
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = originalHTML;
+            return;
+        }
+        
+        // Create a clone of the dashboard for export (without edit buttons)
+        const exportContainer = document.createElement('div');
+        exportContainer.style.position = 'fixed';
+        exportContainer.style.top = '-9999px';
+        exportContainer.style.left = '-9999px';
+        exportContainer.style.width = '1200px';
+        exportContainer.style.backgroundColor = 'white';
+        exportContainer.style.padding = '20px';
+        exportContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+        exportContainer.style.fontSize = '14px';
+        exportContainer.style.lineHeight = '1.5';
+        exportContainer.style.color = '#333';
+        exportContainer.innerHTML = dashboardContent.innerHTML;
+        
+        // Remove edit buttons from the clone
+        const editButtons = exportContainer.querySelectorAll('button[title="Edit content"]');
+        editButtons.forEach(btn => btn.remove());
+        
+        // Remove copy buttons from the clone
+        const copyButtons = exportContainer.querySelectorAll('button[title="Copy content"]');
+        copyButtons.forEach(btn => btn.remove());
+        
+        // Add title to the export
+        const title = document.createElement('h1');
+        title.textContent = 'Team Updates Dashboard';
+        title.style.textAlign = 'center';
+        title.style.marginBottom = '30px';
+        title.style.color = '#333';
+        exportContainer.insertBefore(title, exportContainer.firstChild);
+        
+        document.body.appendChild(exportContainer);
+        
+        // Generate high-quality screenshot using SnapDOM
+        const canvas = await snapdom.toCanvas(exportContainer, {
+            backgroundColor: 'white',
+            width: 2400, // Double resolution for crisp output
+            scale: 2,    // Higher scale for better quality
+            embedFonts: true,
+            quality: 1.0 // Maximum quality
+        });
+        
+        // Clean up the temporary container
+        document.body.removeChild(exportContainer);
+        
+        // Create PPTX
+        const pptx = new PptxGenJS();
+        
+        // Add title slide first
+        const titleSlide = pptx.addSlide();
+        titleSlide.addText('Team Updates Dashboard', {
+            x: 1,
+            y: 2,
+            w: 8,
+            h: 1.5,
+            fontSize: 36,
+            bold: true,
+            color: '333333',
+            align: 'center'
+        });
+        
+        titleSlide.addText(`Generated on ${new Date().toLocaleDateString()}`, {
+            x: 1,
+            y: 4,
+            w: 8,
+            h: 0.5,
+            fontSize: 16,
+            color: '666666',
+            align: 'center'
+        });
+        
+        // Add slide with the screenshot
+        const slide = pptx.addSlide();
+        
+        // Convert canvas to high-quality base64 PNG
+        const imageData = canvas.toDataURL('image/png', 1.0); // Maximum quality
+        
+        // Add image to slide with proper sizing to maintain aspect ratio
+        slide.addImage({
+            data: imageData,
+            x: 0.5,
+            y: 0.5,
+            w: 9,
+            h: 6.5,
+            sizing: {
+                type: 'contain', // Maintain aspect ratio
+                w: 9,
+                h: 6.5
+            }
+        });
+        
+        // Generate and download PPTX
+        const fileName = `team-updates-${new Date().toISOString().split('T')[0]}.pptx`;
+        await pptx.writeFile({ fileName });
+        
+        showToast('PPTX exported successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        showToast('Failed to export PPTX. Please try again.', 'danger');
+    } finally {
+        // Restore button state
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = originalHTML;
     }
 };
 
@@ -277,6 +413,160 @@ const showToast = (message, type = 'success') => {
     
     // Remove toast element after it's hidden
     toast.addEventListener('hidden.bs.toast', () => toast.remove());
+};
+
+// Edit content functionality
+window.editContent = (elementId, field) => {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const currentText = element.textContent.trim();
+    if (currentText === 'Generate summary to see next steps' || 
+        currentText === 'Add team updates and generate summary to see content' ||
+        currentText === 'To be generated' ||
+        currentText.includes('Generate summary to see')) {
+        return; // Don't allow editing placeholder text
+    }
+    
+    // Get the raw markdown/text content from state instead of rendered HTML
+    let currentValue = '';
+    if (state.generatedContent && state.generatedContent[field]) {
+        currentValue = state.generatedContent[field];
+    } else {
+        currentValue = currentText;
+    }
+    
+    // Create textarea for editing
+    const textarea = document.createElement('textarea');
+    textarea.className = 'form-control';
+    textarea.style.minHeight = '100px';
+    textarea.value = currentValue;
+    
+    // Replace content with textarea
+    element.innerHTML = '';
+    element.appendChild(textarea);
+    textarea.focus();
+    
+    // Create save/cancel buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'mt-2';
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn btn-sm btn-success me-2';
+    saveBtn.innerHTML = '<i class="bi bi-check"></i> Save';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn btn-sm btn-secondary';
+    cancelBtn.innerHTML = '<i class="bi bi-x"></i> Cancel';
+    
+    buttonContainer.appendChild(saveBtn);
+    buttonContainer.appendChild(cancelBtn);
+    element.appendChild(buttonContainer);
+    
+    // Save functionality
+    saveBtn.onclick = () => {
+        const newValue = textarea.value.trim();
+        if (newValue) {
+            // Save to state
+            if (!state.generatedContent) state.generatedContent = {};
+            state.generatedContent[field] = newValue;
+            save('generated-content', state.generatedContent);
+            
+            // Restore content
+            if (field === 'summary' || field === 'nextSteps' || field === 'documentLinks') {
+                element.innerHTML = marked.parse(newValue);
+            } else if (field === 'pmTeam') {
+                // For PM team, save the team name but keep the existing sponsor
+                updateUI(); // This will re-render with the updated data
+                return;
+            } else {
+                element.textContent = newValue;
+            }
+            
+            showToast('Content updated successfully!', 'success');
+        }
+    };
+    
+    // Cancel functionality
+    cancelBtn.onclick = () => {
+        if (field === 'summary' || field === 'nextSteps' || field === 'documentLinks') {
+            // Restore from the original stored value
+            const originalValue = state.generatedContent && state.generatedContent[field] ? state.generatedContent[field] : currentText;
+            element.innerHTML = marked.parse(originalValue);
+        } else if (field === 'pmTeam') {
+            updateUI(); // Re-render to restore original state
+        } else {
+            element.textContent = currentText;
+        }
+    };
+};
+
+// Inline edit functionality for simple text fields
+window.editInlineContent = (elementId, field) => {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const currentText = element.textContent.trim();
+    if (currentText === 'To be generated') return; // Don't edit placeholder
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control form-control-sm';
+    input.value = currentText;
+    input.style.display = 'inline-block';
+    input.style.width = 'auto';
+    input.style.minWidth = '150px';
+    
+    element.parentNode.replaceChild(input, element);
+    input.focus();
+    input.select();
+    
+    const saveEdit = () => {
+        const newValue = input.value.trim();
+        if (newValue && newValue !== currentText) {
+            // Save to state
+            if (!state.generatedContent) state.generatedContent = {};
+            state.generatedContent[field] = newValue;
+            save('generated-content', state.generatedContent);
+            showToast('Content updated successfully!', 'success');
+        }
+        
+        // Create new span element
+        const newSpan = document.createElement('span');
+        newSpan.id = elementId;
+        newSpan.style.cursor = 'pointer';
+        newSpan.style.padding = '2px 4px';
+        newSpan.style.borderRadius = '3px';
+        newSpan.title = 'Click to edit';
+        newSpan.textContent = newValue || currentText;
+        newSpan.onclick = () => window.editInlineContent(elementId, field);
+        
+        input.parentNode.replaceChild(newSpan, input);
+    };
+    
+    const cancelEdit = () => {
+        const newSpan = document.createElement('span');
+        newSpan.id = elementId;
+        newSpan.style.cursor = 'pointer';
+        newSpan.style.padding = '2px 4px';
+        newSpan.style.borderRadius = '3px';
+        newSpan.title = 'Click to edit';
+        newSpan.textContent = currentText;
+        newSpan.onclick = () => window.editInlineContent(elementId, field);
+        
+        input.parentNode.replaceChild(newSpan, input);
+    };
+    
+    input.addEventListener('blur', saveEdit);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveEdit();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEdit();
+        }
+    });
 };
 
 // Copy content functionality
@@ -343,6 +633,7 @@ window.copyContent = async (elementId) => {
 
 const init = async () => {
     $('config-btn').addEventListener('click', () => configureLLM(true));
+    $('export-btn').addEventListener('click', exportToPPTX);
     $('update-form').addEventListener('submit', handleUpdateSubmit);
     $('modal-submit-btn').addEventListener('click', handleModalSubmit);
     $('page-title').addEventListener('click', resetToInitialState);

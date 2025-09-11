@@ -99,9 +99,14 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                 <div class="card-header bg-light">
                     <div class="d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><strong>Coming up/ Next Steps</strong></h6>
-                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('next-steps')} title="Copy content">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-1" @click=${() => window.editContent('next-steps', 'nextSteps')} title="Edit content">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('next-steps')} title="Copy content">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -116,15 +121,20 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                 <div class="card-header bg-light">
                     <div class="d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><strong>PM/Workstream Lead:</strong></h6>
-                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('pm-team')} title="Copy content">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-1" @click=${() => window.editContent('pm-team', 'pmTeam')} title="Edit content">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('pm-team')} title="Copy content">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
                     <div id="pm-team">
-                        <p><strong>Team:</strong> ${state.generatedContent?.pmTeam || 'To be generated'}</p>
-                        <p class="mb-0"><strong>Sponsor:</strong> ${state.generatedContent?.sponsor || 'To be generated'}</p>
+                        <p><strong>Team:</strong> <span id="pm-team-name" style="cursor: pointer; padding: 2px 4px; border-radius: 3px;" @click=${() => window.editInlineContent('pm-team-name', 'pmTeam')} title="Click to edit">${state.generatedContent?.pmTeam || 'To be generated'}</span></p>
+                        <p class="mb-0"><strong>Sponsor:</strong> <span id="pm-sponsor" style="cursor: pointer; padding: 2px 4px; border-radius: 3px;" @click=${() => window.editInlineContent('pm-sponsor', 'sponsor')} title="Click to edit">${state.generatedContent?.sponsor || 'To be generated'}</span></p>
                     </div>
                 </div>
             </div>
@@ -137,9 +147,14 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                 <div class="card-header bg-light">
                     <div class="d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><strong>Overall Summary/Path to Green/Additional Context:</strong></h6>
-                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('summary')} title="Copy content">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-1" @click=${() => window.editContent('summary', 'summary')} title="Edit content">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('summary')} title="Copy content">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -235,17 +250,25 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                 <div class="card-header bg-light">
                     <div class="d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><strong>Document Links</strong></h6>
-                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('document-links')} title="Copy content">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-1" @click=${() => window.editContent('document-links', 'documentLinks')} title="Edit content">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('document-links')} title="Copy content">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
                     <div id="document-links">
-                        <ul class="list-unstyled mb-0">
-                            <li>• Project Scope/Requirements</li>
-                            <li>• Budget</li>
-                        </ul>
+                        ${state.generatedContent?.documentLinks ? 
+                            unsafeHTML(marked.parse(state.generatedContent.documentLinks)) :
+                            html`<ul class="list-unstyled mb-0">
+                                <li>• Project Scope/Requirements</li>
+                                <li>• Budget</li>
+                            </ul>`
+                        }
                     </div>
                 </div>
             </div>
