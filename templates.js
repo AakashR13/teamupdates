@@ -40,16 +40,11 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                         <h6 class="fw-bold mb-3">Achieved</h6>
                         <div id="achieved-content">
                             ${state.generatedContent?.summary ? unsafeHTML(marked.parse(state.generatedContent.summary)) : 
-                                html`<div class="text-muted">
-                                    <p>• TSA, RTSA & Costs</p>
-                                    <p>• Reporting</p>
-                                    <p>• Subscription Analytics</p>
-                                    <p>• Adobe Analytics Transition</p>
-                                    <p>• Tableau License approach</p>
-                                    <p>• Customer MDM (Reltio)</p>
-                                    <p>• Data Catalog Transition</p>
-                                    <p>• Tools & Platforms</p>
-                                    <p>• DTC Alignment</p>
+                                html`<div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="text-muted mt-2 mb-0">Generating content...</p>
                                 </div>`
                             }
                         </div>
@@ -60,14 +55,11 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                         <h6 class="fw-bold mb-3">Coming Up / Next Steps</h6>
                         <div id="next-steps" class="next-steps-content">
                             ${state.generatedContent?.nextSteps ? unsafeHTML(marked.parse(state.generatedContent.nextSteps)) : 
-                                html`<div class="text-muted">
-                                    <p>• Initiated thread with DTC</p>
-                                    <p>• Privacy/Legal Alignment</p>
-                                    <p>• Costing</p>
-                                    <p>• MDM</p>
-                                    <p>• Catalog/Governance</p>
-                                    <p>• Reporting/Analytics</p>
-                                    <p>• Data Sharing</p>
+                                html`<div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="text-muted mt-2 mb-0">Generating content...</p>
                                 </div>`
                             }
                         </div>
@@ -153,7 +145,12 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                                             <td><span class="status-dot ${risk.ra === 'High' ? 'red' : risk.ra === 'Medium' ? 'yellow' : 'green'}"></span> ${risk.ra}</td>
                                         </tr>
                                     `) :
-                                    html`<tr><td class="text-muted" colspan="4">Generate summary to see key risks and dependencies</td></tr>`
+                                    html`<tr><td class="text-center py-3" colspan="4">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <span class="text-muted ms-2">Generating risks...</span>
+                                    </td></tr>`
                                 }
                             </tbody>
                         </table>
@@ -185,7 +182,12 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                                             <td><span class="status-dot ${milestone.status === 'Complete' ? 'green' : milestone.status === 'In progress' ? 'blue' : milestone.status === 'On track' ? 'green' : 'yellow'}"></span> ${milestone.status}</td>
                                         </tr>
                                     `) :
-                                    html`<tr><td class="text-muted" colspan="3">Generate summary to see milestones</td></tr>`
+                                    html`<tr><td class="text-center py-3" colspan="3">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <span class="text-muted ms-2">Generating milestones...</span>
+                                    </td></tr>`
                                 }
                             </tbody>
                         </table>
@@ -199,7 +201,11 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                     <div class="card mb-3 h-100">
                         <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
                             <h6 class="fw-bold">PM/Workstream Lead</h6>
-                            <p class="mb-0 small">${state.generatedContent?.pmTeam || 'NA'}</p>
+                            <p class="mb-0 small">${state.generatedContent?.pmTeam || 
+                                html`<div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>`
+                            }</p>
                         </div>
                     </div>
                 </div>
@@ -207,7 +213,11 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                     <div class="card mb-3 h-100">
                         <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
                             <h6 class="fw-bold">Team</h6>
-                            <p class="mb-0 small">${state.generatedContent?.team || 'NA'}</p>
+                            <p class="mb-0 small">${state.generatedContent?.team || 
+                                html`<div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>`
+                            }</p>
                         </div>
                     </div>
                 </div>
@@ -217,7 +227,11 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                     <div class="card mb-3 h-100">
                         <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
                             <h6 class="fw-bold">Sponsor</h6>
-                            <p class="mb-0 small">${state.generatedContent?.sponsor || 'NA'}</p>
+                            <p class="mb-0 small">${state.generatedContent?.sponsor || 
+                                html`<div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>`
+                            }</p>
                         </div>
                     </div>
                 </div>
@@ -228,7 +242,9 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                             <div class="small">
                                 ${state.generatedContent?.documentLinks ? 
                                     unsafeHTML(marked.parse(state.generatedContent.documentLinks)) :
-                                    html`<p class="mb-0">Projects Scope/ Requirements<br>Budget</p>`
+                                    html`<div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>`
                                 }
                             </div>
                         </div>
