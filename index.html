@@ -27,14 +27,17 @@
         .title-bar .status-indicators {
             justify-content: center;
         }
-        .status-indicators { display: flex; align-items: center; gap: 1rem; }
-        .status-dots { display: flex; align-items: center; gap: 0.5rem; }
+        .status-indicators { display: flex; align-items: center; gap: 1rem; height: 100%; }
+        .status-dots { display: flex; flex-direction: column; gap: 0.1rem; }
+        .status-dots div { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; flex-direction: row-reverse; }
         .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
         .dot.red { background: #dc3545; }
         .dot.yellow { background: #ffc107; }
         .dot.green { background: #198754; }
         .dot.blue { background: #0d6efd; }
-        .status-circles { display: flex; align-items: center; gap: 0.5rem; }
+        .status-grid { display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
+        .grid-row { display: flex; gap: 1.5rem; }
+        .grid-row div { display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; min-width: 80px; }
         .circle { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
         .circle.green { background: #198754; }
         .circle.blue { background: #0d6efd; }
@@ -53,6 +56,96 @@
         .card-header.bg-primary { 
             background: linear-gradient(270deg, #015CFE 0%, #030067 100%) !important; 
         }
+        .legend-separator {
+            width: 1px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.3);
+            align-self: center;
+        }
+        .footer-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #F2F2F2;
+            color: #000;
+            padding: 1rem 0.5rem;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .footer-item {
+            text-align: left;
+            padding: 0 0.5rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            width: 100%;
+            max-width: 100%;
+        }
+        .footer-item h6 {
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 0.1rem;
+            color: #000;
+        }
+        .footer-item p {
+            font-size: 0.85rem;
+            margin-bottom: 0;
+            color: #000;
+            line-height: 1.2;
+        }
+        .footer-bar .col-3 {
+            flex: 0 0 25%;
+            max-width: 25%;
+            min-width: 0;
+        }
+        .footer-item p:hover, .footer-item .document-links:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        #achieved-content:hover, #next-steps:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+            border: 1px dashed #ccc;
+        }
+        #risks:hover, #milestones:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        .footer-item .document-links {
+            font-size: 0.85rem;
+            line-height: 1.2;
+            color: #000;
+        }
+        .footer-item .document-links ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: inline;
+        }
+        .footer-item .document-links li {
+            display: inline;
+        }
+        .footer-item .document-links li:not(:last-child):after {
+            content: " | ";
+            color: #999;
+        }
+        body {
+            padding-bottom: 95px; /* Increased space for footer with more padding */
+        }
+        #page-title:hover {
+            opacity: 0.8;
+            text-decoration: underline !important;
+        }
+        .card-body .row {
+            border-right: 1px solid #dee2e6;
+        }
+        .card-body .row:last-child {
+            border-right: none;
+        }
+        .card-body .row > div {
+            border-right: 1px solid #dee2e6;
+        }
+        .card-body .row > div:last-child {
+            border-right: none;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -61,19 +154,28 @@
         <div class="title-bar mb-4">
             <div class="d-flex justify-content-between align-items-center w-100 px-3">
                 <div>
-                    <h1 class="h4 mb-0 text-white" id="page-title" style="cursor: pointer;" title="Click to return to start">EDAIS Separation - Status</h1>
+                    <h1 class="h4 mb-0 text-white" id="page-title" style="cursor: pointer; text-decoration: none;" title="Click to return to start">
+                        <i class="bi bi-house-door me-2"></i>EDAIS Separation - Status
+                    </h1>
+                    <small class="text-white-50">Portfolio Ownership: EDAIS</small>
                 </div>
                 <div class="d-flex align-items-center">
                     <div class="status-indicators me-3">
-                        <div class="status-dots">
-                            <span class="dot red"></span> High
-                            <span class="dot yellow"></span> Medium  
-                            <span class="dot green"></span> Low
+                        <div class="status-dots me-4">
+                            <div><span class="dot red"></span> Blocked</div>
+                            <div><span class="dot yellow"></span> At Risk</div>  
+                            <div><span class="dot green"></span> On Track</div>
                         </div>
-                        <div class="status-circles">
-                            <span class="circle green"></span> Complete
-                            <span class="circle blue"></span> In progress
-                            <span class="circle green"></span> On track
+                        <div class="legend-separator me-4"></div>
+                        <div class="status-grid me-4">
+                            <div class="grid-row">
+                                <div><span class="circle blue"></span> Schedule</div>
+                                <div><span class="circle green"></span> Cost</div>
+                            </div>
+                            <div class="grid-row">
+                                <div><span class="circle blue"></span> Resource</div>
+                                <div><span class="circle green"></span> Scope</div>
+                            </div>
                         </div>
                         <div class="overall-status">Overall</div>
                     </div>

@@ -288,6 +288,26 @@ const exportToPPTX = async () => {
         exportContainer.style.color = '#333';
         exportContainer.innerHTML = dashboardContent.innerHTML;
         
+        // Find and fix footer positioning for export
+        const footerBar = exportContainer.querySelector('.footer-bar');
+        if (footerBar) {
+            // Convert fixed positioning to static for export
+            footerBar.style.position = 'static';
+            footerBar.style.marginTop = '30px';
+            footerBar.style.width = '100%';
+            footerBar.style.bottom = 'auto';
+            footerBar.style.left = 'auto';
+            footerBar.style.right = 'auto';
+        }
+        
+        // Fix status update container for export - remove height constraint and scrolling
+        const statusUpdateContainer = exportContainer.querySelector('.status-update-container');
+        if (statusUpdateContainer) {
+            statusUpdateContainer.style.height = 'auto';
+            statusUpdateContainer.style.overflow = 'visible';
+            statusUpdateContainer.style.maxHeight = 'none';
+        }
+        
         // Remove edit buttons from the clone
         const editButtons = exportContainer.querySelectorAll('button[title="Edit content"]');
         editButtons.forEach(btn => btn.remove());
@@ -421,93 +441,71 @@ const showToast = (message, type = 'success') => {
     toast.addEventListener('hidden.bs.toast', () => toast.remove());
 };
 
-// Edit content functionality
+// Edit content functionality - Modal-based approach
 window.editContent = (elementId, field) => {
     const element = document.getElementById(elementId);
     if (!element) return;
     
-    const currentText = element.textContent.trim();
-    if (currentText === 'Generate summary to see next steps' || 
-        currentText === 'Add team updates and generate summary to see content' ||
-        currentText === 'To be generated' ||
-        currentText.includes('Generate summary to see')) {
-        return; // Don't allow editing placeholder text
-    }
-    
-    // Get the raw markdown/text content from state instead of rendered HTML
+    // Get current value from state
     let currentValue = '';
     if (state.generatedContent && state.generatedContent[field]) {
         currentValue = state.generatedContent[field];
-    } else {
-        currentValue = currentText;
     }
     
-    // Create textarea for editing
-    const textarea = document.createElement('textarea');
-    textarea.className = 'form-control';
-    textarea.style.minHeight = '100px';
-    textarea.value = currentValue;
+    // Create modal for editing
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'editModal';
+    modal.tabIndex = -1;
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit ${field === 'summary' ? 'Achieved Content' : field === 'nextSteps' ? 'Next Steps' : field === 'documentLinks' ? 'Document Links' : field}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="form-control" id="editTextarea" rows="8" placeholder="Enter content (Markdown supported)...">${currentValue}</textarea>
+                    <div class="form-text mt-2">You can use Markdown formatting (e.g., **bold**, *italic*, - lists)</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveEditBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    `;
     
-    // Replace content with textarea
-    element.innerHTML = '';
-    element.appendChild(textarea);
-    textarea.focus();
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
     
-    // Create save/cancel buttons
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'mt-2';
-    
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'btn btn-sm btn-success me-2';
-    saveBtn.innerHTML = '<i class="bi bi-check"></i> Save';
-    
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn btn-sm btn-secondary';
-    cancelBtn.innerHTML = '<i class="bi bi-x"></i> Cancel';
-    
-    buttonContainer.appendChild(saveBtn);
-    buttonContainer.appendChild(cancelBtn);
-    element.appendChild(buttonContainer);
+    // Focus textarea after modal is shown
+    modal.addEventListener('shown.bs.modal', () => {
+        document.getElementById('editTextarea').focus();
+    });
     
     // Save functionality
-    saveBtn.onclick = () => {
-        const newValue = textarea.value.trim();
-        if (newValue) {
-            // Save to state
-            if (!state.generatedContent) state.generatedContent = {};
-            state.generatedContent[field] = newValue;
-            save('generated-content', state.generatedContent);
-            
-            // Restore content
-            if (field === 'summary' || field === 'nextSteps' || field === 'documentLinks') {
-                element.innerHTML = marked.parse(newValue);
-            } else if (field === 'pmTeam') {
-                // For PM team, save the team name but keep the existing sponsor
-                updateUI(); // This will re-render with the updated data
-                return;
-            } else {
-                element.textContent = newValue;
-            }
-            
-            showToast('Content updated successfully!', 'success');
-        }
+    document.getElementById('saveEditBtn').onclick = () => {
+        const newValue = document.getElementById('editTextarea').value.trim();
+        
+        // Save to state
+        if (!state.generatedContent) state.generatedContent = {};
+        state.generatedContent[field] = newValue;
+        save('generated-content', state.generatedContent);
+        
+        bootstrapModal.hide();
+        updateUI();
+        showToast('Content updated successfully!', 'success');
     };
     
-    // Cancel functionality
-    cancelBtn.onclick = () => {
-        if (field === 'summary' || field === 'nextSteps' || field === 'documentLinks') {
-            // Restore from the original stored value
-            const originalValue = state.generatedContent && state.generatedContent[field] ? state.generatedContent[field] : currentText;
-            element.innerHTML = marked.parse(originalValue);
-        } else if (field === 'pmTeam') {
-            updateUI(); // Re-render to restore original state
-        } else {
-            element.textContent = currentText;
-        }
-    };
+    // Clean up modal when hidden
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
 };
 
-// Inline edit functionality for simple text fields
+// Inline edit functionality for simple text fields - Fixed version
 window.editInlineContent = (elementId, field) => {
     const element = document.getElementById(elementId);
     if (!element) return;
@@ -515,21 +513,44 @@ window.editInlineContent = (elementId, field) => {
     const currentText = element.textContent.trim();
     if (currentText === 'To be generated') return; // Don't edit placeholder
     
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'form-control form-control-sm';
-    input.value = currentText;
-    input.style.display = 'inline-block';
-    input.style.width = 'auto';
-    input.style.minWidth = '150px';
+    // Create modal for inline editing
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'inlineEditModal';
+    modal.tabIndex = -1;
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit ${field}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control" id="inlineEditInput" value="${currentText}" placeholder="Enter ${field}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveInlineBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    `;
     
-    element.parentNode.replaceChild(input, element);
-    input.focus();
-    input.select();
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
     
-    const saveEdit = () => {
-        const newValue = input.value.trim();
-        if (newValue && newValue !== currentText) {
+    // Focus input after modal is shown
+    modal.addEventListener('shown.bs.modal', () => {
+        const input = document.getElementById('inlineEditInput');
+        input.focus();
+        input.select();
+    });
+    
+    // Save functionality
+    document.getElementById('saveInlineBtn').onclick = () => {
+        const newValue = document.getElementById('inlineEditInput').value.trim();
+        if (newValue) {
             // Save to state
             if (!state.generatedContent) state.generatedContent = {};
             state.generatedContent[field] = newValue;
@@ -537,41 +558,21 @@ window.editInlineContent = (elementId, field) => {
             showToast('Content updated successfully!', 'success');
         }
         
-        // Create new span element
-        const newSpan = document.createElement('span');
-        newSpan.id = elementId;
-        newSpan.style.cursor = 'pointer';
-        newSpan.style.padding = '2px 4px';
-        newSpan.style.borderRadius = '3px';
-        newSpan.title = 'Click to edit';
-        newSpan.textContent = newValue || currentText;
-        newSpan.onclick = () => window.editInlineContent(elementId, field);
-        
-        input.parentNode.replaceChild(newSpan, input);
+        bootstrapModal.hide();
+        updateUI();
     };
     
-    const cancelEdit = () => {
-        const newSpan = document.createElement('span');
-        newSpan.id = elementId;
-        newSpan.style.cursor = 'pointer';
-        newSpan.style.padding = '2px 4px';
-        newSpan.style.borderRadius = '3px';
-        newSpan.title = 'Click to edit';
-        newSpan.textContent = currentText;
-        newSpan.onclick = () => window.editInlineContent(elementId, field);
-        
-        input.parentNode.replaceChild(newSpan, input);
-    };
-    
-    input.addEventListener('blur', saveEdit);
-    input.addEventListener('keydown', (e) => {
+    // Handle Enter key
+    document.getElementById('inlineEditInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            saveEdit();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            cancelEdit();
+            document.getElementById('saveInlineBtn').click();
         }
+    });
+    
+    // Clean up modal when hidden
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
     });
 };
 
@@ -635,6 +636,117 @@ window.copyContent = async (elementId) => {
         console.error('Failed to copy content:', err);
         showToast('Failed to copy content to clipboard', 'danger');
     }
+};
+
+// Table content editing functionality - Modal-based approach
+window.editTableContent = (elementId, field) => {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    // Get current data
+    let currentData = state.generatedContent?.[field] || [];
+    
+    // Create modal for table editing
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'tableEditModal';
+    modal.tabIndex = -1;
+    
+    let placeholder = '';
+    let currentValue = '';
+    
+    if (field === 'risks') {
+        placeholder = `Enter risks in this format (one per line):
+Risk description | Due date | Owner | Status (High/Medium/Low)
+
+Example:
+Data migration delay | 2024-01-15 | John Doe | High
+Budget approval pending | 2024-01-20 | Jane Smith | Medium`;
+        
+        if (currentData.length > 0) {
+            currentValue = currentData.map(risk => 
+                `${risk.description} | ${risk.dueBy} | ${risk.owner} | ${risk.ra}`
+            ).join('\n');
+        }
+    } else if (field === 'milestones') {
+        placeholder = `Enter milestones in this format (one per line):
+Milestone name | Forecast date | Status
+
+Example:
+System deployment | 2024-02-01 | On track
+User training completion | 2024-02-15 | In progress`;
+        
+        if (currentData.length > 0) {
+            currentValue = currentData.map(milestone => 
+                `${milestone.milestone} | ${milestone.forecastDate} | ${milestone.status}`
+            ).join('\n');
+        }
+    }
+    
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit ${field === 'risks' ? 'Risks & Issues' : 'Milestones'}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="form-control" id="tableEditTextarea" rows="10" style="font-family: monospace;" placeholder="${placeholder}">${currentValue}</textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveTableBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    // Focus textarea after modal is shown
+    modal.addEventListener('shown.bs.modal', () => {
+        document.getElementById('tableEditTextarea').focus();
+    });
+    
+    // Save functionality
+    document.getElementById('saveTableBtn').onclick = () => {
+        const lines = document.getElementById('tableEditTextarea').value.trim().split('\n').filter(line => line.trim());
+        const newData = [];
+        
+        lines.forEach(line => {
+            const parts = line.split('|').map(part => part.trim());
+            if (field === 'risks' && parts.length >= 4) {
+                newData.push({
+                    description: parts[0],
+                    dueBy: parts[1],
+                    owner: parts[2],
+                    ra: parts[3]
+                });
+            } else if (field === 'milestones' && parts.length >= 3) {
+                newData.push({
+                    milestone: parts[0],
+                    forecastDate: parts[1],
+                    status: parts[2]
+                });
+            }
+        });
+        
+        // Save to state
+        if (!state.generatedContent) state.generatedContent = {};
+        state.generatedContent[field] = newData;
+        save('generated-content', state.generatedContent);
+        
+        bootstrapModal.hide();
+        updateUI();
+        showToast('Table updated successfully!', 'success');
+    };
+    
+    // Clean up modal when hidden
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
 };
 
 const init = async () => {
