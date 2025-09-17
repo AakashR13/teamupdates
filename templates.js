@@ -199,7 +199,7 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                     <div class="card mb-3 h-100">
                         <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
                             <h6 class="fw-bold">PM/Workstream Lead</h6>
-                            <p class="mb-0 small">${state.generatedContent?.pmTeam || 'Alejandro Manduley, Prathiba Pinto'}</p>
+                            <p class="mb-0 small">${state.generatedContent?.pmTeam || 'NA'}</p>
                         </div>
                     </div>
                 </div>
@@ -207,7 +207,7 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                     <div class="card mb-3 h-100">
                         <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
                             <h6 class="fw-bold">Team</h6>
-                            <p class="mb-0 small">${state.generatedContent?.team || 'Lucrecia Johnson, Swarup Das, Anish Agarwal, Ritesh Dedhia'}</p>
+                            <p class="mb-0 small">${state.generatedContent?.team || 'NA'}</p>
                         </div>
                     </div>
                 </div>
@@ -217,7 +217,7 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                     <div class="card mb-3 h-100">
                         <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
                             <h6 class="fw-bold">Sponsor</h6>
-                            <p class="mb-0 small">${state.generatedContent?.sponsor || 'Subhadra Ummeda'}</p>
+                            <p class="mb-0 small">${state.generatedContent?.sponsor || 'NA'}</p>
                         </div>
                     </div>
                 </div>
