@@ -6,46 +6,81 @@
     <title>Team Updates Aggregator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .title-bar { 
+            background: linear-gradient(270deg, #015CFE 0%, #030067 100%); 
+            color: white; 
+            padding: 1rem; 
+            border-radius: 0.375rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .title-bar .status-indicators {
+            justify-content: center;
+        }
+        .status-indicators { display: flex; align-items: center; gap: 1rem; }
+        .status-dots { display: flex; align-items: center; gap: 0.5rem; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .dot.red { background: #dc3545; }
+        .dot.yellow { background: #ffc107; }
+        .dot.green { background: #198754; }
+        .dot.blue { background: #0d6efd; }
+        .status-circles { display: flex; align-items: center; gap: 0.5rem; }
+        .circle { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .circle.green { background: #198754; }
+        .circle.blue { background: #0d6efd; }
+        .overall-status { 
+            background: #198754; 
+            color: white; 
+            padding: 0.5rem 1rem; 
+            border-radius: 0.25rem; 
+            font-weight: bold; 
+        }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 0.5rem; }
+        .status-dot.red { background: #dc3545; }
+        .status-dot.yellow { background: #ffc107; }
+        .status-dot.green { background: #198754; }
+        .status-dot.blue { background: #0d6efd; }
+        .card-header.bg-primary { 
+            background: linear-gradient(270deg, #015CFE 0%, #030067 100%) !important; 
+        }
+    </style>
 </head>
 <body class="bg-light">
-    <div class="container-fluid py-3">
+    <div class="container-fluid">
         <!-- Header -->
-        <div class="row mb-4">
-            <div class="col">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="d-flex align-items-center mb-2">
-                            <h1 class="h4 mb-0" id="page-title" style="cursor: pointer;" title="Click to return to start">Team Updates Aggregator</h1>
+        <div class="title-bar mb-4">
+            <div class="d-flex justify-content-between align-items-center w-100">
+                <div>
+                    <h1 class="h4 mb-0 text-white" id="page-title" style="cursor: pointer;" title="Click to return to start">EDAIS Separation - Status</h1>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="status-indicators me-3">
+                        <div class="status-dots">
+                            <span class="dot red"></span> High
+                            <span class="dot yellow"></span> Medium  
+                            <span class="dot green"></span> Low
                         </div>
+                        <div class="status-circles">
+                            <span class="circle green"></span> Complete
+                            <span class="circle blue"></span> In progress
+                            <span class="circle green"></span> On track
+                        </div>
+                        <div class="overall-status">Overall</div>
                     </div>
-                    <div class="d-flex align-items-center">
-                        <!-- Status Indicators -->
-                        <div class="me-3">
-                            <span class="badge bg-danger me-1">●</span><small class="me-2">Blocked</small>
-                            <span class="badge bg-warning me-1">●</span><small class="me-2">Behind</small>
-                            <span class="badge bg-success me-1">●</span><small class="me-2">Completed</small>
-                        </div>
-                        <!-- Status Badges -->
-                        <div class="me-3">
-                            <span class="badge bg-secondary me-1">➖ Not Started</span>
-                            <span class="badge bg-success me-1">✓ Cost</span>
-                            <span class="badge bg-success me-1">✓ Resource</span>
-                            <span class="badge bg-success me-1">✓ Scope</span>
-                            <span class="badge bg-success me-1">➤ Completed</span>
-                        </div>
-                        <button id="export-btn" class="btn btn-outline-success me-2">
-                            <i class="bi bi-download"></i> Export to PPTX
-                        </button>
-                        <button id="config-btn" class="btn btn-outline-primary ms-3">
-                            <i class="bi bi-gear"></i> Configure LLM
-                        </button>
-                    </div>
+                    <button id="export-btn" class="btn btn-outline-light me-2">
+                        <i class="bi bi-download"></i> Export to PPTX
+                    </button>
+                    <button id="config-btn" class="btn btn-outline-light">
+                        <i class="bi bi-gear"></i> Configure LLM
+                    </button>
                 </div>
             </div>
         </div>
 
         <!-- Main Content Container -->
-        <div id="main-content">
+        <div id="main-content" class="py-3">
             <!-- Initial Center Form -->
             <div id="initial-form" class="row justify-content-center">
                 <div class="col-lg-6">

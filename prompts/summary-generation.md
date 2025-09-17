@@ -21,7 +21,9 @@ Please analyze the following team updates and generate a structured response in 
     }
   ],
   "pmTeam": "Project management team or workstream lead information",
-  "sponsor": "Executive sponsor or sponsoring organization"
+  "team": "Core team members and contributors",
+  "sponsor": "Executive sponsor or sponsoring organization",
+  "documentLinks": "Document links and references (use HTML formatting with links or bullet points)"
 }
 
 Team Updates:

@@ -296,6 +296,15 @@ const exportToPPTX = async () => {
         const copyButtons = exportContainer.querySelectorAll('button[title="Copy content"]');
         copyButtons.forEach(btn => btn.remove());
         
+        // Hide specific DOM elements from screenshot
+        // Hide "Status Update" section (the old one with controls)
+        const cardHeaders = exportContainer.querySelectorAll('.card-header h6');
+        cardHeaders.forEach(header => {
+            if (header.textContent.includes('Status Update:')) {
+                header.closest('.card').style.display = 'none';
+            }
+        });
+        
         // Add title to the export
         const title = document.createElement('h1');
         title.textContent = 'Team Updates Dashboard';
@@ -306,10 +315,9 @@ const exportToPPTX = async () => {
         
         document.body.appendChild(exportContainer);
         
-        // Generate high-quality screenshot using SnapDOM
+        // Generate high-quality screenshot using SnapDOM - no size constraints
         const canvas = await snapdom.toCanvas(exportContainer, {
             backgroundColor: 'white',
-            width: 2400, // Double resolution for crisp output
             scale: 2,    // Higher scale for better quality
             embedFonts: true,
             quality: 1.0 // Maximum quality
@@ -350,17 +358,15 @@ const exportToPPTX = async () => {
         // Convert canvas to high-quality base64 PNG
         const imageData = canvas.toDataURL('image/png', 1.0); // Maximum quality
         
-        // Add image to slide with proper sizing to maintain aspect ratio
+        // Add image to fill entire slide (16:9 ratio)
         slide.addImage({
             data: imageData,
-            x: 0.5,
-            y: 0.5,
-            w: 9,
-            h: 6.5,
+            x: 0,
+            y: 0,
+            w: 10,
+            h: 5.625, // 10 * (9/16) = 5.625 for 16:9 ratio
             sizing: {
-                type: 'contain', // Maintain aspect ratio
-                w: 9,
-                h: 6.5
+                type: 'cover' // Fill entire area without shrinking
             }
         });
         

@@ -28,21 +28,53 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
     <div class="row">
         <!-- Left Column -->
         <div class="col-lg-6">
-            <!-- Portfolio Ownership -->
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><strong>Portfolio Ownership: EDAIS</strong></h6>
-                </div>
-            </div>
-
             <!-- Status Update Section -->
             <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><strong>Status Update:</strong></h6>
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><strong>Status Update</strong></h6>
+                    <small>Overall Summary / Path to Green / Additional Context</small>
                 </div>
                 <div class="card-body">
-                    <!-- Current Updates -->
-                    <div class="border-bottom pb-3 mb-3">
+                    <!-- Achieved Section -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Achieved</h6>
+                        <div id="achieved-content">
+                            ${state.generatedContent?.summary ? unsafeHTML(marked.parse(state.generatedContent.summary)) : 
+                                html`<div class="text-muted">
+                                    <p>• TSA, RTSA & Costs</p>
+                                    <p>• Reporting</p>
+                                    <p>• Subscription Analytics</p>
+                                    <p>• Adobe Analytics Transition</p>
+                                    <p>• Tableau License approach</p>
+                                    <p>• Customer MDM (Reltio)</p>
+                                    <p>• Data Catalog Transition</p>
+                                    <p>• Tools & Platforms</p>
+                                    <p>• DTC Alignment</p>
+                                </div>`
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Coming Up / Next Steps Section -->
+                    <div>
+                        <h6 class="fw-bold mb-3">Coming Up / Next Steps</h6>
+                        <div id="next-steps" class="next-steps-content">
+                            ${state.generatedContent?.nextSteps ? unsafeHTML(marked.parse(state.generatedContent.nextSteps)) : 
+                                html`<div class="text-muted">
+                                    <p>• Initiated thread with DTC</p>
+                                    <p>• Privacy/Legal Alignment</p>
+                                    <p>• Costing</p>
+                                    <p>• MDM</p>
+                                    <p>• Catalog/Governance</p>
+                                    <p>• Reporting/Analytics</p>
+                                    <p>• Data Sharing</p>
+                                </div>`
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Hidden controls for functionality -->
+                    <div class="d-none">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0 fw-bold">Current Updates <span class="badge bg-primary">${state.updates.length}</span></h6>
                             <div>
@@ -78,63 +110,16 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                                 `)}
                             </div>`
                         }
-                    </div>
-
-                    <!-- Generate Button -->
-                    <div class="text-center">
-                        <button @click=${generateSummary} 
-                                ?disabled=${!state.updates.length || !state.llmConfig || state.isGenerating}
-                                class="btn btn-primary w-100">
-                            ${state.isGenerating ? 
-                                html`<span><i class="bi bi-three-dots"></i> Generating AI Summary...</span>` :
-                                html`<span>Generate AI Summary</span>`
-                            }
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Coming up/Next Steps Section -->
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><strong>Coming up/ Next Steps</strong></h6>
-                        <div>
-                            <button class="btn btn-sm btn-outline-primary me-1" @click=${() => window.editContent('next-steps', 'nextSteps')} title="Edit content">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('next-steps')} title="Copy content">
-                                <i class="bi bi-clipboard"></i>
+                        <div class="text-center">
+                            <button @click=${generateSummary} 
+                                    ?disabled=${!state.updates.length || !state.llmConfig || state.isGenerating}
+                                    class="btn btn-primary w-100">
+                                ${state.isGenerating ? 
+                                    html`<span><i class="bi bi-three-dots"></i> Generating AI Summary...</span>` :
+                                    html`<span>Generate AI Summary</span>`
+                                }
                             </button>
                         </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div id="next-steps" class="next-steps-content">
-                        ${state.generatedContent?.nextSteps ? unsafeHTML(marked.parse(state.generatedContent.nextSteps)) : 'Generate summary to see next steps'}
-                    </div>
-                </div>
-            </div>
-
-            <!-- PM/Workstream Lead -->
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><strong>PM/Workstream Lead:</strong></h6>
-                        <div>
-                            <button class="btn btn-sm btn-outline-primary me-1" @click=${() => window.editContent('pm-team', 'pmTeam')} title="Edit content">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('pm-team')} title="Copy content">
-                                <i class="bi bi-clipboard"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div id="pm-team">
-                        <p><strong>Team:</strong> <span id="pm-team-name" style="cursor: pointer; padding: 2px 4px; border-radius: 3px;" @click=${() => window.editInlineContent('pm-team-name', 'pmTeam')} title="Click to edit">${state.generatedContent?.pmTeam || 'To be generated'}</span></p>
-                        <p class="mb-0"><strong>Sponsor:</strong> <span id="pm-sponsor" style="cursor: pointer; padding: 2px 4px; border-radius: 3px;" @click=${() => window.editInlineContent('pm-sponsor', 'sponsor')} title="Click to edit">${state.generatedContent?.sponsor || 'To be generated'}</span></p>
                     </div>
                 </div>
             </div>
@@ -142,47 +127,20 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
 
         <!-- Right Column -->
         <div class="col-lg-6">
-            <!-- AI Generated Summary -->
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><strong>Overall Summary/Path to Green/Additional Context:</strong></h6>
-                        <div>
-                            <button class="btn btn-sm btn-outline-primary me-1" @click=${() => window.editContent('summary', 'summary')} title="Edit content">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('summary')} title="Copy content">
-                                <i class="bi bi-clipboard"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div id="summary" class="summary-content">
-                        ${state.generatedContent?.summary ? unsafeHTML(marked.parse(state.generatedContent.summary)) : 'Add team updates and generate summary to see content'}
-                    </div>
-                </div>
-            </div>
-
             <!-- Key Risks/Issues/Dependencies -->
             <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><strong>Key Risks / Issues / Dependencies:</strong></h6>
-                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('risks')} title="Copy content">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
-                    </div>
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><strong>Key Risks / Issues / Dependencies</strong></h6>
                 </div>
                 <div class="card-body">
                     <div id="risks" class="table-responsive">
                         <table class="table table-sm table-bordered">
                             <thead class="table-primary">
                                 <tr>
-                                    <th>Risk/Issue Description/Mitigation</th>
+                                    <th>Risk / Issue Description & Mitigation</th>
                                     <th>Due by</th>
                                     <th>Owner</th>
-                                    <th>RA</th>
+                                    <th>RGA</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -192,7 +150,7 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                                             <td>${risk.description}</td>
                                             <td>${risk.dueBy}</td>
                                             <td>${risk.owner}</td>
-                                            <td><span class="badge ${risk.ra === 'High' ? 'bg-danger' : risk.ra === 'Medium' ? 'bg-warning' : 'bg-success'}">${risk.ra}</span></td>
+                                            <td><span class="status-dot ${risk.ra === 'High' ? 'red' : risk.ra === 'Medium' ? 'yellow' : 'green'}"></span> ${risk.ra}</td>
                                         </tr>
                                     `) :
                                     html`<tr><td class="text-muted" colspan="4">Generate summary to see key risks and dependencies</td></tr>`
@@ -205,13 +163,8 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
 
             <!-- Core Milestone/Change Moments -->
             <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><strong>Core Milestone/Change Moments:</strong></h6>
-                        <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('milestones')} title="Copy content">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
-                    </div>
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><strong>Core Milestone / Change Moments</strong></h6>
                 </div>
                 <div class="card-body">
                     <div id="milestones" class="table-responsive">
@@ -229,7 +182,7 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                                         <tr>
                                             <td>${milestone.milestone}</td>
                                             <td>${milestone.forecastDate}</td>
-                                            <td><span class="badge ${milestone.status === 'Complete' ? 'bg-success' : milestone.status === 'In progress' ? 'bg-primary' : milestone.status === 'On track' ? 'bg-success' : 'bg-warning'}">${milestone.status}</span></td>
+                                            <td><span class="status-dot ${milestone.status === 'Complete' ? 'green' : milestone.status === 'In progress' ? 'blue' : milestone.status === 'On track' ? 'green' : 'yellow'}"></span> ${milestone.status}</td>
                                         </tr>
                                     `) :
                                     html`<tr><td class="text-muted" colspan="3">Generate summary to see milestones</td></tr>`
@@ -239,36 +192,46 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Bottom Section -->
-    <div class="row">
-        <div class="col-12">
-            <!-- Document Links -->
-            <div class="card">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><strong>Document Links</strong></h6>
-                        <div>
-                            <button class="btn btn-sm btn-outline-primary me-1" @click=${() => window.editContent('document-links', 'documentLinks')} title="Edit content">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" @click=${() => window.copyContent('document-links')} title="Copy content">
-                                <i class="bi bi-clipboard"></i>
-                            </button>
+            <!-- Footer Cards in Right Column -->
+            <div class="row mt-3">
+                <div class="col-6">
+                    <div class="card mb-3 h-100">
+                        <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
+                            <h6 class="fw-bold">PM/Workstream Lead</h6>
+                            <p class="mb-0 small">${state.generatedContent?.pmTeam || 'Alejandro Manduley, Prathiba Pinto'}</p>
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div id="document-links">
-                        ${state.generatedContent?.documentLinks ? 
-                            unsafeHTML(marked.parse(state.generatedContent.documentLinks)) :
-                            html`<ul class="list-unstyled mb-0">
-                                <li>• Project Scope/Requirements</li>
-                                <li>• Budget</li>
-                            </ul>`
-                        }
+                <div class="col-6">
+                    <div class="card mb-3 h-100">
+                        <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
+                            <h6 class="fw-bold">Team</h6>
+                            <p class="mb-0 small">${state.generatedContent?.team || 'Lucrecia Johnson, Swarup Das, Anish Agarwal, Ritesh Dedhia'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-6">
+                    <div class="card mb-3 h-100">
+                        <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
+                            <h6 class="fw-bold">Sponsor</h6>
+                            <p class="mb-0 small">${state.generatedContent?.sponsor || 'Subhadra Ummeda'}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card mb-3 h-100">
+                        <div class="card-body text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
+                            <h6 class="fw-bold">Document Links</h6>
+                            <div class="small">
+                                ${state.generatedContent?.documentLinks ? 
+                                    unsafeHTML(marked.parse(state.generatedContent.documentLinks)) :
+                                    html`<p class="mb-0">Projects Scope/ Requirements<br>Budget</p>`
+                                }
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
