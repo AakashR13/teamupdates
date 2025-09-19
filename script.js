@@ -423,6 +423,12 @@ const exportToPPTX = async () => {
         mainContent.style.fontSize = '14px'; // Readable font size
         mainContent.innerHTML = dashboardContent.innerHTML;
         
+        // Remove any existing footer from the main content to prevent duplication
+        const existingFooter = mainContent.querySelector('.footer-bar');
+        if (existingFooter) {
+            existingFooter.remove();
+        }
+        
         // Fix text stretching and layout issues in main content
         const allElements = mainContent.querySelectorAll('*');
         allElements.forEach(element => {
