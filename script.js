@@ -342,12 +342,14 @@ const exportToPPTX = async () => {
             .card { margin-bottom: 0.75rem; border: 1px solid #dee2e6; border-radius: 0.375rem; }
             .card-header { padding: 0.5rem 0.75rem; background-color: rgba(0,0,0,.03); border-bottom: 1px solid #dee2e6; font-size: 14px; }
             .card-body { padding: 0.75rem; }
-            .table { width: 100%; margin-bottom: 0.5rem; color: #212529; font-size: 12px; border-collapse: collapse; }
-            .table th, .table td { padding: 0.5rem; border: 1px solid #dee2e6; text-align: left; vertical-align: middle; }
-            .table th { background-color: #015CFE; color: white; font-weight: bold; text-align: center; }
+            .table { width: 100%; margin-bottom: 0.5rem; color: #212529; font-size: 12px; border-collapse: collapse; table-layout: fixed; }
+            .table th, .table td { padding: 0.5rem; border: 1px solid #dee2e6; text-align: left; vertical-align: top; word-wrap: break-word; white-space: normal; }
+            .table th { background-color: #015CFE; color: white; font-weight: bold; text-align: center; vertical-align: middle; }
             .table-primary th { background-color: #015CFE !important; color: white !important; border-color: #015CFE !important; }
             .table tbody tr:nth-child(even) { background-color: #f8f9fa; }
             .table tbody tr:nth-child(odd) { background-color: white; }
+            .table td:first-child { width: 50%; line-height: 1.3; }
+            .table td:not(:first-child) { width: auto; text-align: center; }
             .row { display: flex; flex-wrap: wrap; margin-right: -0.75rem; margin-left: -0.75rem; }
             .col, .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10, .col-11, .col-12, .col-lg-6 { position: relative; width: 100%; padding-right: 0.75rem; padding-left: 0.75rem; }
             .col-lg-6 { flex: 0 0 auto; width: 50%; }
@@ -374,11 +376,17 @@ const exportToPPTX = async () => {
             h6 { font-size: 14px !important; margin-bottom: 0.5rem !important; }
             .border-bottom { border-bottom: 1px solid #dee2e6 !important; }
             .text-center { text-align: center !important; }
-            .card-body .row { display: flex !important; align-items: center !important; min-height: 40px !important; }
-            .card-body .row .col { display: flex !important; align-items: center !important; padding: 0.5rem !important; border-right: 1px solid #dee2e6 !important; }
+            .card-body .row { display: flex !important; align-items: flex-start !important; min-height: 40px !important; }
+            .card-body .row .col { display: flex !important; align-items: flex-start !important; padding: 0.5rem !important; border-right: 1px solid #dee2e6 !important; word-wrap: break-word !important; white-space: normal !important; }
+            .card-body .row .col:first-child { max-width: 50% !important; line-height: 1.3 !important; flex-direction: column !important; }
+            .card-body .row .col:not(:first-child) { justify-content: center !important; align-items: center !important; text-align: center !important; }
             .card-body .row .col:last-child { border-right: none !important; }
             .card-body .row.mx-0 { margin-left: 0 !important; margin-right: 0 !important; }
             .status-dot { vertical-align: middle !important; }
+            .col-lg-6:first-child h4 { margin-bottom: 0.5rem !important; }
+            .col-lg-6:first-child h6 { margin-bottom: 0.4rem !important; }
+            .col-lg-6:first-child .mb-4 { margin-bottom: 0.75rem !important; }
+            .status-update-container > div { margin-bottom: 0.75rem !important; }
         `;
         exportContainer.appendChild(styleElement);
         
@@ -442,6 +450,33 @@ const exportToPPTX = async () => {
             // Make columns more balanced and remove excessive spacing
             leftColumn.style.paddingRight = '10px';
             rightColumn.style.paddingLeft = '10px';
+            
+            // Reduce vertical spacing in left column specifically
+            const leftColumnElements = leftColumn.querySelectorAll('h4, h6, .mb-3, .mb-4, div[style*="margin-left"]');
+            leftColumnElements.forEach(element => {
+                if (element.tagName === 'H4') {
+                    element.style.marginBottom = '0.5rem';
+                }
+                if (element.tagName === 'H6') {
+                    element.style.marginBottom = '0.4rem';
+                }
+                if (element.classList.contains('mb-3') || element.classList.contains('mb-4')) {
+                    element.style.marginBottom = '0.5rem';
+                }
+                // Reduce spacing for the achieved and next steps content areas
+                if (element.style.marginLeft === '1.5rem') {
+                    element.style.marginBottom = '0.75rem';
+                }
+            });
+            
+            // Reduce spacing in the status update container
+            const statusUpdateContainer = leftColumn.querySelector('.status-update-container');
+            if (statusUpdateContainer) {
+                const sections = statusUpdateContainer.querySelectorAll('.mb-4, div:has(h6)');
+                sections.forEach(section => {
+                    section.style.marginBottom = '0.75rem';
+                });
+            }
         }
         
         // Adjust card spacing for better fit
@@ -474,25 +509,39 @@ const exportToPPTX = async () => {
         const tableCells = mainContent.querySelectorAll('.table td');
         tableCells.forEach(td => {
             td.style.textAlign = 'left';
-            td.style.verticalAlign = 'middle';
+            td.style.verticalAlign = 'top'; // Changed to top for better text wrapping
             td.style.border = '1px solid #dee2e6';
             td.style.padding = '0.5rem';
+            td.style.wordWrap = 'break-word';
+            td.style.overflowWrap = 'break-word';
+            td.style.whiteSpace = 'normal'; // Allow text wrapping
         });
         
         // Fix the custom risk/milestone table rows
         const customRows = mainContent.querySelectorAll('.row.border-bottom, .row.mx-0');
         customRows.forEach(row => {
-            row.style.alignItems = 'center';
+            row.style.alignItems = 'flex-start'; // Changed to flex-start for better text wrapping
             row.style.minHeight = '40px';
             row.style.borderBottom = '1px solid #dee2e6';
             
             // Fix column alignment within these rows
             const cols = row.querySelectorAll('.col, [class*="col-"]');
-            cols.forEach(col => {
+            cols.forEach((col, index) => {
                 col.style.display = 'flex';
-                col.style.alignItems = 'center';
+                col.style.alignItems = 'flex-start'; // Changed to flex-start
                 col.style.padding = '0.5rem';
                 col.style.borderRight = '1px solid #dee2e6';
+                col.style.wordWrap = 'break-word';
+                col.style.overflowWrap = 'break-word';
+                col.style.whiteSpace = 'normal';
+                
+                // Special handling for first column (description column)
+                if (index === 0) {
+                    col.style.flexDirection = 'column';
+                    col.style.justifyContent = 'flex-start';
+                    col.style.lineHeight = '1.3';
+                    col.style.maxWidth = '60%'; // Limit width to force wrapping
+                }
             });
             
             // Remove border from last column

@@ -29,11 +29,11 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
         <!-- Left Column -->
         <div class="col-lg-6">
             <!-- Status Update Section -->
-            <h4 class="mb-3 fw-bold">Status Update</h4>
+            <h4 class="mb-2 fw-bold">Status Update</h4>
             <div class="status-update-container" style="height: 600px; overflow-y: auto;">
                 <!-- Achieved Section -->
-                <div class="mb-4">
-                    <h6 class="fw-bold mb-3">Achieved</h6>
+                <div class="mb-3">
+                    <h6 class="fw-bold mb-2">Achieved</h6>
                     <div id="achieved-content" style="margin-left: 1.5rem; cursor: pointer; padding: 8px; border-radius: 4px;" 
                          title="Click to edit" 
                          @click=${() => window.editContent('achieved-content', 'summary')}>
@@ -44,8 +44,8 @@ export const dashboardTemplate = (state, { clearAllUpdates, showInputForm, gener
                 </div>
 
                 <!-- Coming Up / Next Steps Section -->
-                <div>
-                    <h6 class="fw-bold mb-3">Coming Up / Next Steps</h6>
+                <div class="mb-3">
+                    <h6 class="fw-bold mb-2">Coming Up / Next Steps</h6>
                     <div id="next-steps" class="next-steps-content" style="margin-left: 1.5rem; cursor: pointer; padding: 8px; border-radius: 4px;" 
                          title="Click to edit" 
                          @click=${() => window.editContent('next-steps', 'nextSteps')}>
