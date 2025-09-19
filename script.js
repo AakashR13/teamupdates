@@ -274,73 +274,310 @@ const exportToPPTX = async () => {
             return;
         }
         
-        // Create a clone of the dashboard for export (without edit buttons)
+        // Create a complete export container with proper PPT-sized layout
         const exportContainer = document.createElement('div');
         exportContainer.style.position = 'fixed';
         exportContainer.style.top = '-9999px';
         exportContainer.style.left = '-9999px';
-        exportContainer.style.width = '1200px';
+        exportContainer.style.width = '1920px'; // Standard PPT width (16:9 ratio)
+        exportContainer.style.height = '1080px'; // Standard PPT height (16:9 ratio)
         exportContainer.style.backgroundColor = 'white';
-        exportContainer.style.padding = '20px';
         exportContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-        exportContainer.style.fontSize = '14px';
-        exportContainer.style.lineHeight = '1.5';
+        exportContainer.style.fontSize = '14px'; // Readable font size
+        exportContainer.style.lineHeight = '1.4';
         exportContainer.style.color = '#333';
-        exportContainer.innerHTML = dashboardContent.innerHTML;
+        exportContainer.style.display = 'flex';
+        exportContainer.style.flexDirection = 'column';
+        exportContainer.style.overflow = 'hidden';
         
-        // Find and fix footer positioning for export
-        const footerBar = exportContainer.querySelector('.footer-bar');
-        if (footerBar) {
-            // Convert fixed positioning to static for export
-            footerBar.style.position = 'static';
-            footerBar.style.marginTop = '30px';
-            footerBar.style.width = '100%';
-            footerBar.style.bottom = 'auto';
-            footerBar.style.left = 'auto';
-            footerBar.style.right = 'auto';
+        // Add essential CSS styles for proper rendering
+        const styleElement = document.createElement('style');
+        styleElement.textContent = `
+            .title-bar { 
+                background: linear-gradient(270deg, #015CFE 0%, #030067 100%); 
+                color: white; 
+                padding: 0.5rem 0; 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center; 
+                font-size: 14px;
+            }
+            .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+            .dot.red { background: #dc3545; }
+            .dot.yellow { background: #ffc107; }
+            .dot.green { background: #198754; }
+            .dot.blue { background: #0d6efd; }
+            .circle { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+            .circle.green { background: #198754; }
+            .circle.blue { background: #0d6efd; }
+            .overall-status { 
+                background: #198754; 
+                color: white; 
+                padding: 0.5rem 1rem; 
+                border-radius: 0.25rem; 
+                font-weight: bold; 
+            }
+            .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 0.5rem; }
+            .status-dot.red { background: #dc3545; }
+            .status-dot.yellow { background: #ffc107; }
+            .status-dot.green { background: #198754; }
+            .status-dot.blue { background: #0d6efd; }
+            .card-header.bg-primary { 
+                background: linear-gradient(270deg, #015CFE 0%, #030067 100%) !important; 
+                color: white;
+            }
+            .footer-bar {
+                background: #F2F2F2;
+                color: #000;
+                padding: 0.5rem;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+                font-size: 10px;
+            }
+            .legend-separator {
+                width: 1px;
+                height: 60px;
+                background-color: rgba(255, 255, 255, 0.3);
+                align-self: center;
+            }
+            .card { margin-bottom: 0.75rem; border: 1px solid #dee2e6; border-radius: 0.375rem; }
+            .card-header { padding: 0.5rem 0.75rem; background-color: rgba(0,0,0,.03); border-bottom: 1px solid #dee2e6; font-size: 14px; }
+            .card-body { padding: 0.75rem; }
+            .table { width: 100%; margin-bottom: 0.5rem; color: #212529; font-size: 12px; border-collapse: collapse; }
+            .table th, .table td { padding: 0.5rem; border: 1px solid #dee2e6; text-align: left; vertical-align: middle; }
+            .table th { background-color: #015CFE; color: white; font-weight: bold; text-align: center; }
+            .table-primary th { background-color: #015CFE !important; color: white !important; border-color: #015CFE !important; }
+            .table tbody tr:nth-child(even) { background-color: #f8f9fa; }
+            .table tbody tr:nth-child(odd) { background-color: white; }
+            .row { display: flex; flex-wrap: wrap; margin-right: -0.75rem; margin-left: -0.75rem; }
+            .col, .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10, .col-11, .col-12, .col-lg-6 { position: relative; width: 100%; padding-right: 0.75rem; padding-left: 0.75rem; }
+            .col-lg-6 { flex: 0 0 auto; width: 50%; }
+            .col-3 { flex: 0 0 auto; width: 25%; }
+            .col-2 { flex: 0 0 auto; width: 16.66667%; }
+            .col-1 { flex: 0 0 auto; width: 8.33333%; }
+            .d-flex { display: flex !important; }
+            .justify-content-between { justify-content: space-between !important; }
+            .align-items-center { align-items: center !important; }
+            .fw-bold { font-weight: 700 !important; }
+            .text-white { color: #fff !important; }
+            .text-white-50 { color: rgba(255, 255, 255, 0.5) !important; }
+            .text-muted { color: #6c757d !important; }
+            .mb-0 { margin-bottom: 0 !important; }
+            .mb-3 { margin-bottom: 1rem !important; }
+            .mb-4 { margin-bottom: 1rem !important; }
+            .me-2 { margin-right: 0.5rem !important; }
+            .me-3 { margin-right: 1rem !important; }
+            .me-4 { margin-right: 1.5rem !important; }
+            .ms-2 { margin-left: 0.5rem !important; }
+            .px-3 { padding-left: 1rem !important; padding-right: 1rem !important; }
+            .py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+            h4 { font-size: 16px !important; margin-bottom: 0.75rem !important; }
+            h6 { font-size: 14px !important; margin-bottom: 0.5rem !important; }
+            .border-bottom { border-bottom: 1px solid #dee2e6 !important; }
+            .text-center { text-align: center !important; }
+            .card-body .row { display: flex !important; align-items: center !important; min-height: 40px !important; }
+            .card-body .row .col { display: flex !important; align-items: center !important; padding: 0.5rem !important; border-right: 1px solid #dee2e6 !important; }
+            .card-body .row .col:last-child { border-right: none !important; }
+            .card-body .row.mx-0 { margin-left: 0 !important; margin-right: 0 !important; }
+            .status-dot { vertical-align: middle !important; }
+        `;
+        exportContainer.appendChild(styleElement);
+        
+        // Clone and add the header (fixed to top)
+        const originalHeader = document.querySelector('.title-bar');
+        if (originalHeader) {
+            const headerClone = originalHeader.cloneNode(true);
+            // Remove buttons from header for export
+            const buttons = headerClone.querySelectorAll('button');
+            buttons.forEach(btn => btn.remove());
+            
+            // Fix header styling for export - compact version
+            headerClone.style.position = 'relative';
+            headerClone.style.left = 'auto';
+            headerClone.style.right = 'auto';
+            headerClone.style.marginLeft = 'auto';
+            headerClone.style.marginRight = 'auto';
+            headerClone.style.width = '100%';
+            headerClone.style.height = '80px'; // Fixed height for header
+            headerClone.style.flexShrink = '0';
+            headerClone.style.padding = '0.5rem 0'; // Reduced padding
+            headerClone.style.fontSize = '14px'; // Smaller font for header
+            
+            exportContainer.appendChild(headerClone);
         }
         
-        // Fix status update container for export - remove height constraint and scrolling
-        const statusUpdateContainer = exportContainer.querySelector('.status-update-container');
+        // Create main content area with proper sizing
+        const mainContent = document.createElement('div');
+        mainContent.style.flex = '1';
+        mainContent.style.padding = '15px 30px';
+        mainContent.style.maxWidth = '100%';
+        mainContent.style.overflow = 'hidden';
+        mainContent.style.height = 'calc(100% - 160px)'; // Reserve space for header (80px) and footer (80px)
+        mainContent.style.fontSize = '14px'; // Readable font size
+        mainContent.innerHTML = dashboardContent.innerHTML;
+        
+        // Fix text stretching and layout issues in main content
+        const allElements = mainContent.querySelectorAll('*');
+        allElements.forEach(element => {
+            // Prevent text from stretching horizontally
+            if (element.style) {
+                element.style.maxWidth = '100%';
+                element.style.wordWrap = 'break-word';
+                element.style.overflowWrap = 'break-word';
+            }
+        });
+        
+        // Fix status update container for export - remove scroll and fit content
+        const statusUpdateContainer = mainContent.querySelector('.status-update-container');
         if (statusUpdateContainer) {
-            statusUpdateContainer.style.height = 'auto';
+            statusUpdateContainer.style.height = 'auto'; // Let content determine height
             statusUpdateContainer.style.overflow = 'visible';
             statusUpdateContainer.style.maxHeight = 'none';
         }
         
-        // Remove edit buttons from the clone
-        const editButtons = exportContainer.querySelectorAll('button[title="Edit content"]');
-        editButtons.forEach(btn => btn.remove());
+        // Optimize layout for better space usage
+        const leftColumn = mainContent.querySelector('.col-lg-6:first-child');
+        const rightColumn = mainContent.querySelector('.col-lg-6:last-child');
         
-        // Remove copy buttons from the clone
-        const copyButtons = exportContainer.querySelectorAll('button[title="Copy content"]');
-        copyButtons.forEach(btn => btn.remove());
+        if (leftColumn && rightColumn) {
+            // Make columns more balanced and remove excessive spacing
+            leftColumn.style.paddingRight = '10px';
+            rightColumn.style.paddingLeft = '10px';
+        }
+        
+        // Adjust card spacing for better fit
+        const cards = mainContent.querySelectorAll('.card');
+        cards.forEach(card => {
+            card.style.marginBottom = '0.75rem';
+        });
+        
+        // Fix table styling and alignment
+        const tables = mainContent.querySelectorAll('.table');
+        tables.forEach(table => {
+            table.style.fontSize = '12px';
+            table.style.marginBottom = '0.5rem';
+            table.style.borderCollapse = 'collapse';
+            table.style.width = '100%';
+        });
+        
+        // Fix table headers specifically
+        const tableHeaders = mainContent.querySelectorAll('.table th');
+        tableHeaders.forEach(th => {
+            th.style.backgroundColor = '#015CFE';
+            th.style.color = 'white';
+            th.style.textAlign = 'center';
+            th.style.verticalAlign = 'middle';
+            th.style.fontWeight = 'bold';
+            th.style.border = '1px solid #015CFE';
+        });
+        
+        // Fix table cells alignment
+        const tableCells = mainContent.querySelectorAll('.table td');
+        tableCells.forEach(td => {
+            td.style.textAlign = 'left';
+            td.style.verticalAlign = 'middle';
+            td.style.border = '1px solid #dee2e6';
+            td.style.padding = '0.5rem';
+        });
+        
+        // Fix the custom risk/milestone table rows
+        const customRows = mainContent.querySelectorAll('.row.border-bottom, .row.mx-0');
+        customRows.forEach(row => {
+            row.style.alignItems = 'center';
+            row.style.minHeight = '40px';
+            row.style.borderBottom = '1px solid #dee2e6';
+            
+            // Fix column alignment within these rows
+            const cols = row.querySelectorAll('.col, [class*="col-"]');
+            cols.forEach(col => {
+                col.style.display = 'flex';
+                col.style.alignItems = 'center';
+                col.style.padding = '0.5rem';
+                col.style.borderRight = '1px solid #dee2e6';
+            });
+            
+            // Remove border from last column
+            const lastCol = cols[cols.length - 1];
+            if (lastCol) {
+                lastCol.style.borderRight = 'none';
+            }
+        });
+        
+        // Remove edit buttons and interactive elements from the clone
+        const editButtons = mainContent.querySelectorAll('button, [style*="cursor: pointer"]');
+        editButtons.forEach(btn => {
+            if (btn.tagName === 'BUTTON') {
+                btn.remove();
+            } else {
+                btn.style.cursor = 'default';
+                btn.removeAttribute('title');
+                btn.onclick = null;
+            }
+        });
         
         // Hide specific DOM elements from screenshot
-        // Hide "Status Update" section (the old one with controls)
-        const cardHeaders = exportContainer.querySelectorAll('.card-header h6');
+        const cardHeaders = mainContent.querySelectorAll('.card-header h6');
         cardHeaders.forEach(header => {
             if (header.textContent.includes('Status Update:')) {
                 header.closest('.card').style.display = 'none';
             }
         });
         
-        // Add title to the export
-        const title = document.createElement('h1');
-        title.textContent = 'Team Updates Dashboard';
-        title.style.textAlign = 'center';
-        title.style.marginBottom = '30px';
-        title.style.color = '#333';
-        exportContainer.insertBefore(title, exportContainer.firstChild);
+        exportContainer.appendChild(mainContent);
+        
+        // Clone and add the footer at the bottom (fixed to bottom)
+        const originalFooter = document.querySelector('.footer-bar');
+        if (originalFooter) {
+            const footerClone = originalFooter.cloneNode(true);
+            
+            // Fix footer styling for export - compact version
+            footerClone.style.position = 'relative';
+            footerClone.style.bottom = 'auto';
+            footerClone.style.left = 'auto';
+            footerClone.style.right = 'auto';
+            footerClone.style.width = '100%';
+            footerClone.style.height = '80px'; // Fixed height for footer
+            footerClone.style.flexShrink = '0';
+            footerClone.style.marginTop = '0';
+            footerClone.style.zIndex = 'auto';
+            footerClone.style.padding = '0.5rem'; // Reduced padding
+            footerClone.style.fontSize = '10px'; // Smaller font for footer
+            
+            // Make footer content more compact
+            const footerItems = footerClone.querySelectorAll('.footer-item');
+            footerItems.forEach(item => {
+                const h6 = item.querySelector('h6');
+                const p = item.querySelector('p');
+                if (h6) {
+                    h6.style.fontSize = '11px';
+                    h6.style.marginBottom = '0.1rem';
+                }
+                if (p) {
+                    p.style.fontSize = '10px';
+                    p.style.lineHeight = '1.2';
+                }
+            });
+            
+            // Remove interactive elements from footer
+            const footerButtons = footerClone.querySelectorAll('[style*="cursor: pointer"]');
+            footerButtons.forEach(btn => {
+                btn.style.cursor = 'default';
+                btn.removeAttribute('title');
+                btn.onclick = null;
+            });
+            
+            exportContainer.appendChild(footerClone);
+        }
         
         document.body.appendChild(exportContainer);
         
-        // Generate high-quality screenshot using SnapDOM - no size constraints
+        // Generate high-quality screenshot using SnapDOM with better settings
         const canvas = await snapdom.toCanvas(exportContainer, {
             backgroundColor: 'white',
-            scale: 2,    // Higher scale for better quality
+            scale: 1.5,    // Optimal scale for quality vs performance
             embedFonts: true,
-            quality: 1.0 // Maximum quality
+            quality: 1.0,  // Maximum quality
+            useCORS: true,
+            allowTaint: false
         });
         
         // Clean up the temporary container
@@ -372,21 +609,22 @@ const exportToPPTX = async () => {
             align: 'center'
         });
         
-        // Add slide with the screenshot
+        // Add slide with the screenshot - optimized for full layout
         const slide = pptx.addSlide();
         
         // Convert canvas to high-quality base64 PNG
         const imageData = canvas.toDataURL('image/png', 1.0); // Maximum quality
         
-        // Add image to fill entire slide (16:9 ratio)
+        // Standard PowerPoint slide dimensions (16:9 ratio)
+        // Since we created a 1920x1080 container, it should fit perfectly
         slide.addImage({
             data: imageData,
             x: 0,
             y: 0,
-            w: 10,
-            h: 5.625, // 10 * (9/16) = 5.625 for 16:9 ratio
+            w: 10, // Full slide width
+            h: 5.625, // Full slide height (16:9 ratio: 10 * 9/16 = 5.625)
             sizing: {
-                type: 'cover' // Fill entire area without shrinking
+                type: 'cover' // Fill the entire slide
             }
         });
         
