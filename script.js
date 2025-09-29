@@ -11,8 +11,11 @@ const state = {
     generatedContent: JSON.parse(localStorage.getItem('generated-content') || 'null'),
     isGenerating: false,
     streamingContent: null,
-    prompts: {}
+    prompts: {},
+    showDashboard: false // New state variable to control dashboard visibility
 };
+
+console.log('Initial state loaded:', state); // Debug log
 
 // Utilities
 const $ = id => document.getElementById(id);
@@ -35,6 +38,8 @@ const loadText = async (path) => {
 
 
 const updateUI = () => {
+    console.log('updateUI called, state.showDashboard:', state.showDashboard, 'state.updates.length:', state.updates.length); // Debug log
+    
     const configBtn = $('config-btn');
     configBtn.innerHTML = state.llmConfig ? '<i class="bi bi-check-circle"></i> LLM Configured' : '<i class="bi bi-gear"></i> Configure LLM';
     configBtn.className = state.llmConfig ? 'btn btn-success' : 'btn btn-outline-primary';
@@ -56,25 +61,233 @@ const updateUI = () => {
     const initialForm = $('initial-form');
     const dashboardContent = $('dashboard-content');
     
-    if (state.updates.length === 0) {
-        initialForm.classList.remove('d-none');
-        dashboardContent.classList.add('d-none');
-    } else {
+    console.log('initialForm:', initialForm, 'dashboardContent:', dashboardContent); // Debug log
+    
+    // Check if we should show dashboard (only when explicitly requested via state.showDashboard)
+    if (state.showDashboard && state.updates.length > 0) {
+        console.log('Showing dashboard'); // Debug log
         initialForm.classList.add('d-none');
         dashboardContent.classList.remove('d-none');
         render(dashboardTemplate(state, { clearAllUpdates, showInputForm, generateSummary, removeUpdate }), dashboardContent);
+    } else {
+        console.log('Showing initial form'); // Debug log
+        initialForm.classList.remove('d-none');
+        dashboardContent.classList.add('d-none');
+        
+        // Update team count badge if on initial form
+        updateTeamCountBadge();
+        
+        // Ensure buttons are properly initialized
+        setTimeout(initializeButtons, 100); // Small delay to ensure DOM is ready
     }
 };
 
 const showInputForm = () => {
-    if (state.updates.length === 0) {
-        $('initial-form').classList.remove('d-none');
-        $('dashboard-content').classList.add('d-none');
-    } else {
+    if (state.showDashboard) {
         // Show modal for adding updates when in dashboard view
         const modal = new bootstrap.Modal($('addUpdateModal'));
         modal.show();
+    } else {
+        // Return to multi-team form
+        state.showDashboard = false;
+        updateUI();
     }
+};
+
+// Multi-team form management functions
+let teamCounter = 1;
+
+const updateTeamCountBadge = () => {
+    const badge = $('team-count-badge');
+    const container = $('team-updates-container');
+    if (badge && container) {
+        const teamForms = container.querySelectorAll('.team-update-form');
+        const count = teamForms.length;
+        badge.textContent = `${count} Team${count !== 1 ? 's' : ''}`;
+    }
+};
+
+const addTeamForm = () => {
+    console.log('addTeamForm function called'); // Debug log
+    const container = $('team-updates-container');
+    console.log('Container found:', container); // Debug log
+    if (!container) return;
+    
+    teamCounter++;
+    const teamIndex = teamCounter - 1;
+    
+    const teamFormHTML = `
+        <div class="team-update-form border rounded p-3 mb-3" data-team-index="${teamIndex}">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0 fw-bold text-primary">Team Update #${teamCounter}</h6>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-team-btn">
+                    <i class="bi bi-trash"></i> Remove
+                </button>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Team Name</label>
+                        <input type="text" class="form-control team-name" required 
+                               placeholder="e.g., Engineering, Marketing, Sales">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Update Period</label>
+                        <select class="form-select update-period" required>
+                            <option value="">Select period...</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Update Content</label>
+                <textarea class="form-control update-content" rows="4" required
+                          placeholder="Enter team accomplishments, challenges, and next steps..."></textarea>
+                <div class="form-text">Include key achievements, blockers, and upcoming priorities</div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', teamFormHTML);
+    updateTeamCountBadge();
+    updateRemoveButtonsVisibility();
+    
+    // Scroll to the new form
+    const newForm = container.lastElementChild;
+    newForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Focus on the team name input
+    const teamNameInput = newForm.querySelector('.team-name');
+    if (teamNameInput) {
+        setTimeout(() => teamNameInput.focus(), 300);
+    }
+};
+
+const removeTeamForm = (teamForm) => {
+    if (!teamForm) return;
+    
+    const container = $('team-updates-container');
+    const teamForms = container.querySelectorAll('.team-update-form');
+    
+    // Don't allow removing if it's the last team
+    if (teamForms.length <= 1) {
+        showToast('At least one team update is required', 'warning');
+        return;
+    }
+    
+    teamForm.remove();
+    updateTeamCountBadge();
+    updateRemoveButtonsVisibility();
+    renumberTeamForms();
+};
+
+const updateRemoveButtonsVisibility = () => {
+    const container = $('team-updates-container');
+    const teamForms = container.querySelectorAll('.team-update-form');
+    const removeButtons = container.querySelectorAll('.remove-team-btn');
+    
+    // Show remove buttons only if there's more than one team
+    removeButtons.forEach(btn => {
+        if (teamForms.length > 1) {
+            btn.classList.remove('d-none');
+        } else {
+            btn.classList.add('d-none');
+        }
+    });
+};
+
+const renumberTeamForms = () => {
+    const container = $('team-updates-container');
+    const teamForms = container.querySelectorAll('.team-update-form');
+    
+    teamForms.forEach((form, index) => {
+        const header = form.querySelector('h6');
+        if (header) {
+            header.textContent = `Team Update #${index + 1}`;
+        }
+        form.setAttribute('data-team-index', index);
+    });
+    
+    teamCounter = teamForms.length;
+};
+
+const validateAllTeamForms = () => {
+    const container = $('team-updates-container');
+    const teamForms = container.querySelectorAll('.team-update-form');
+    const errors = [];
+    
+    teamForms.forEach((form, index) => {
+        const teamName = form.querySelector('.team-name').value.trim();
+        const period = form.querySelector('.update-period').value;
+        const content = form.querySelector('.update-content').value.trim();
+        
+        if (!teamName) {
+            errors.push(`Team #${index + 1}: Team name is required`);
+        }
+        if (!period) {
+            errors.push(`Team #${index + 1}: Update period is required`);
+        }
+        if (!content) {
+            errors.push(`Team #${index + 1}: Update content is required`);
+        }
+    });
+    
+    return errors;
+};
+
+const processAllTeamUpdates = async () => {
+    const validationErrors = validateAllTeamForms();
+    
+    if (validationErrors.length > 0) {
+        showToast(validationErrors[0], 'danger'); // Show first error
+        return false;
+    }
+    
+    const container = $('team-updates-container');
+    const teamForms = container.querySelectorAll('.team-update-form');
+    
+    // Clear existing updates
+    state.updates = [];
+    
+    // Add all team updates
+    teamForms.forEach(form => {
+        const teamName = form.querySelector('.team-name').value.trim();
+        const period = form.querySelector('.update-period').value;
+        const content = form.querySelector('.update-content').value.trim();
+        
+        state.updates.push({
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            teamName,
+            period,
+            content,
+            timestamp: new Date().toISOString()
+        });
+    });
+    
+    // Save updates
+    save('team-updates', state.updates);
+    
+    // Switch to dashboard view
+    state.showDashboard = true;
+    updateUI();
+    
+    // Auto-generate AI summary if LLM is configured
+    if (state.llmConfig && !state.isGenerating) {
+        setTimeout(() => {
+            generateSummary();
+        }, 500);
+    }
+    
+    showToast(`Successfully added ${state.updates.length} team updates!`, 'success');
+    return true;
 };
 
 const configureLLM = async (autoShow = false) => {
@@ -221,27 +434,7 @@ const addUpdate = async (teamName, period, content, isModalForm = false) => {
     return true;
 };
 
-const handleUpdateSubmit = async e => {
-    e.preventDefault();
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const submitText = submitBtn.querySelector('.submit-text');
-    const submitSpinner = submitBtn.querySelector('.submit-spinner');
-    
-    submitBtn.disabled = true;
-    submitText.textContent = 'Adding...';
-    submitSpinner.classList.remove('d-none');
-    
-    const [teamName, period, content] = ['team-name', 'update-period', 'update-content'].map(id => $(id).value.trim());
-    
-    const success = await addUpdate(teamName, period, content);
-    if (success) {
-        e.target.reset();
-    }
-    
-    submitBtn.disabled = false;
-    submitText.textContent = 'Add Update';
-    submitSpinner.classList.add('d-none');
-};
+// handleUpdateSubmit function removed - now using multi-team processing
 
 const clearAllUpdates = () => {
     if (!state.updates.length || !confirm('Are you sure you want to clear all updates?')) return;
@@ -359,7 +552,64 @@ const handleModalSubmit = async () => {
 const resetToInitialState = () => {
     if (confirm('Clear all updates and return to start?')) {
         ['team-updates', 'generated-content'].forEach(k => localStorage.removeItem(k));
-        location.reload();
+        
+        // Reset state
+        state.updates = [];
+        state.generatedContent = null;
+        state.showDashboard = false;
+        
+        // Reset multi-team form
+        const container = $('team-updates-container');
+        if (container) {
+            // Remove all team forms
+            container.innerHTML = '';
+            
+            // Add back the initial team form
+            const initialTeamFormHTML = `
+                <div class="team-update-form border rounded p-3 mb-3" data-team-index="0">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0 fw-bold text-primary">Team Update #1</h6>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-team-btn d-none">
+                            <i class="bi bi-trash"></i> Remove
+                        </button>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Team Name</label>
+                                <input type="text" class="form-control team-name" required 
+                                       placeholder="e.g., Engineering, Marketing, Sales">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Update Period</label>
+                                <select class="form-select update-period" required>
+                                    <option value="">Select period...</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Update Content</label>
+                        <textarea class="form-control update-content" rows="4" required
+                                  placeholder="Enter team accomplishments, challenges, and next steps..."></textarea>
+                        <div class="form-text">Include key achievements, blockers, and upcoming priorities</div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = initialTeamFormHTML;
+            teamCounter = 1;
+        }
+        
+        updateUI();
     }
 };
 
@@ -942,6 +1192,12 @@ window.editContent = (elementId, field) => {
                 const updatesText = state.updates.map(({ teamName, period, timestamp, content }) => 
                     `**Team: ${teamName}** (${period})\nDate: ${new Date(timestamp).toLocaleDateString()}\n${content}\n\n`).join('');
                 
+                // Calculate current word count and target expansion
+                const currentWordCount = currentText.trim().split(/\s+/).length;
+                const targetWordCount = Math.round(currentWordCount * 1.25); // 25% increase
+                const minWordCount = Math.round(currentWordCount * 1.15); // At least 15% increase
+                const maxWordCount = Math.round(currentWordCount * 1.4); // Max 40% increase
+                
                 const prompt = `Based on the following team updates and the current ${field} content, please expand and provide more detailed information while maintaining the same format and style:
 
 TEAM UPDATES:
@@ -951,7 +1207,15 @@ CURRENT ${field.toUpperCase()} CONTENT:
 ${currentText}
 
 INSTRUCTIONS:
-Please expand the current content by approximately 25% with more specific details, examples, and context from the team updates. Keep the expansion moderate - add relevant specifics that would be valuable for stakeholders while maintaining the same structure and format. Do not completely rewrite the content, just enhance it with additional relevant details and context.`;
+Please expand the current content with more specific details, examples, and context from the team updates. 
+
+WORD COUNT REQUIREMENTS:
+- Current word count: ${currentWordCount} words
+- Target word count: ${targetWordCount} words (aim for this)
+- Minimum word count: ${minWordCount} words
+- Maximum word count: ${maxWordCount} words
+
+Keep the expansion focused and valuable for stakeholders while maintaining the same structure and format. Do not completely rewrite the content, just enhance it with additional relevant details and context from the team updates provided above.`;
 
                 // Use non-streaming API call
                 const response = await fetch(`${state.llmConfig.baseUrl}/chat/completions`, {
@@ -977,7 +1241,13 @@ Please expand the current content by approximately 25% with more specific detail
                 if (expandedContent) {
                     textarea.value = expandedContent;
                     updateWordCount();
-                    showToast('Content expanded successfully!', 'success');
+                    
+                    // Calculate the actual expansion achieved
+                    const newWordCount = expandedContent.trim().split(/\s+/).length;
+                    const expansionPercentage = Math.round(((newWordCount - currentWordCount) / currentWordCount) * 100);
+                    
+                    console.log(`Expansion: ${currentWordCount} → ${newWordCount} words (+${expansionPercentage}%)`);
+                    showToast(`Content expanded successfully! ${currentWordCount} → ${newWordCount} words (+${expansionPercentage}%)`, 'success');
                 } else {
                     throw new Error('No content received from API');
                 }
@@ -1010,11 +1280,23 @@ Please expand the current content by approximately 25% with more specific detail
             shortenBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Shortening...';
             
             try {
-                const prompt = `Please shorten and summarize the following content while preserving the key information and maintaining the same format/style. Keep it concise but comprehensive:
+                // Calculate current word count and target reduction
+                const currentWordCount = currentText.trim().split(/\s+/).length;
+                const targetWordCount = Math.round(currentWordCount * 0.65); // 35% reduction (65% of original)
+                const minWordCount = Math.round(currentWordCount * 0.5); // Max 50% reduction
+                const maxWordCount = Math.round(currentWordCount * 0.8); // Min 20% reduction
+                
+                const prompt = `Please shorten and summarize the following content while preserving the key information and maintaining the same format/style:
 
 ${currentText}
 
-Please provide a shortened version that maintains the essential points but reduces the overall length by approximately 30-50%.`;
+WORD COUNT REQUIREMENTS:
+- Current word count: ${currentWordCount} words
+- Target word count: ${targetWordCount} words (aim for this)
+- Minimum word count: ${minWordCount} words (don't go below this)
+- Maximum word count: ${maxWordCount} words (don't exceed this)
+
+Please provide a shortened version that maintains the essential points while being more concise and focused.`;
 
                 // Use non-streaming API call to avoid content duplication issues
                 const response = await fetch(`${state.llmConfig.baseUrl}/chat/completions`, {
@@ -1040,7 +1322,13 @@ Please provide a shortened version that maintains the essential points but reduc
                 if (shortenedContent) {
                     textarea.value = shortenedContent;
                     updateWordCount();
-                    showToast('Content shortened successfully!', 'success');
+                    
+                    // Calculate the actual reduction achieved
+                    const newWordCount = shortenedContent.trim().split(/\s+/).length;
+                    const reductionPercentage = Math.round(((currentWordCount - newWordCount) / currentWordCount) * 100);
+                    
+                    console.log(`Shortening: ${currentWordCount} → ${newWordCount} words (-${reductionPercentage}%)`);
+                    showToast(`Content shortened successfully! ${currentWordCount} → ${newWordCount} words (-${reductionPercentage}%)`, 'success');
                 } else {
                     throw new Error('No content received from API');
                 }
@@ -1559,13 +1847,29 @@ const init = async () => {
         console.error('Error setting up export button:', error);
     }
     
+    // Multi-team form event listeners - using robust initialization
     try {
-        const updateForm = $('update-form');
-        if (updateForm) {
-            updateForm.addEventListener('submit', handleUpdateSubmit);
+        // Initialize buttons after a short delay to ensure DOM is ready
+        setTimeout(initializeButtons, 200);
+    } catch (error) {
+        console.error('Error setting up buttons:', error);
+    }
+    
+    // Generate dashboard button setup moved to initializeButtons function
+    
+    // Event delegation for remove team buttons
+    try {
+        const container = $('team-updates-container');
+        if (container) {
+            container.addEventListener('click', (e) => {
+                if (e.target.closest('.remove-team-btn')) {
+                    const teamForm = e.target.closest('.team-update-form');
+                    removeTeamForm(teamForm);
+                }
+            });
         }
     } catch (error) {
-        console.error('Error setting up update form:', error);
+        console.error('Error setting up team removal functionality:', error);
     }
     
     try {
@@ -1599,6 +1903,128 @@ const init = async () => {
     } catch (error) {
         console.error('Error in initial LLM configuration:', error);
     }
+};
+
+// Complete reset function for debugging
+const completeReset = () => {
+    localStorage.clear();
+    state.updates = [];
+    state.generatedContent = null;
+    state.showDashboard = false;
+    state.isGenerating = false;
+    
+    // Reset form
+    const container = $('team-updates-container');
+    if (container) {
+        container.innerHTML = `
+            <div class="team-update-form border rounded p-3 mb-3" data-team-index="0">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0 fw-bold text-primary">Team Update #1</h6>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-team-btn d-none">
+                        <i class="bi bi-trash"></i> Remove
+                    </button>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Team Name</label>
+                            <input type="text" class="form-control team-name" required 
+                                   placeholder="e.g., Engineering, Marketing, Sales">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Update Period</label>
+                            <select class="form-select update-period" required>
+                                <option value="">Select period...</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Update Content</label>
+                    <textarea class="form-control update-content" rows="4" required
+                              placeholder="Enter team accomplishments, challenges, and next steps..."></textarea>
+                    <div class="form-text">Include key achievements, blockers, and upcoming priorities</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    teamCounter = 1;
+    updateUI();
+};
+
+// Make it available globally for debugging
+window.completeReset = completeReset;
+
+// Robust button initialization with retry mechanism
+const initializeButtons = () => {
+    console.log('Initializing buttons...');
+    
+    // Initialize add team button
+    const addTeamBtn = $('add-team-btn');
+    if (addTeamBtn) {
+        console.log('Add team button found, attaching listener');
+        addTeamBtn.onclick = () => {
+            console.log('Add team button clicked');
+            addTeamForm();
+        };
+    } else {
+        console.error('Add team button not found');
+    }
+    
+    // Initialize generate dashboard button
+    const generateDashboardBtn = $('generate-dashboard-btn');
+    if (generateDashboardBtn) {
+        console.log('Generate dashboard button found, attaching listener');
+        generateDashboardBtn.onclick = async () => {
+            console.log('Generate dashboard button clicked');
+            const btn = generateDashboardBtn;
+            const btnText = btn.querySelector('.generate-text');
+            const btnSpinner = btn.querySelector('.generate-spinner');
+            
+            try {
+                btn.disabled = true;
+                if (btnText) btnText.textContent = 'Processing...';
+                if (btnSpinner) btnSpinner.classList.remove('d-none');
+                
+                await processAllTeamUpdates();
+            } catch (error) {
+                console.error('Error processing team updates:', error);
+                showToast('Error processing team updates', 'danger');
+            } finally {
+                btn.disabled = false;
+                if (btnText) btnText.textContent = 'Generate Dashboard';
+                if (btnSpinner) btnSpinner.classList.add('d-none');
+            }
+        };
+    } else {
+        console.error('Generate dashboard button not found');
+    }
+};
+
+// Make debugging functions available globally
+window.completeReset = completeReset;
+window.initializeButtons = initializeButtons;
+window.addTeamForm = addTeamForm;
+window.processAllTeamUpdates = processAllTeamUpdates;
+
+// Simple test function
+window.testButtons = () => {
+    console.log('Testing buttons...');
+    const addBtn = $('add-team-btn');
+    const genBtn = $('generate-dashboard-btn');
+    console.log('Add button:', addBtn);
+    console.log('Generate button:', genBtn);
+    console.log('Add button onclick:', addBtn?.onclick);
+    console.log('Generate button onclick:', genBtn?.onclick);
 };
 
 document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
