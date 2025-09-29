@@ -79,20 +79,123 @@ const showInputForm = () => {
 
 const configureLLM = async (autoShow = false) => {
     const configBtn = $('config-btn');
-    configBtn.disabled = true;
+    if (configBtn) {
+        configBtn.disabled = true;
+    }
     
-    state.llmConfig = await openaiConfig({
-        title: "Configure AI Provider",
-        help: autoShow ? '<div class="alert alert-info"><i class="bi bi-info-circle"></i> Please configure your AI provider</div>' : '',
-        show: autoShow || !state.llmConfig,
-        defaultBaseUrls: ["https://api.openai.com/v1", "https://api.anthropic.com/v1", "https://openrouter.ai/api/v1"],
-        storage: localStorage, key: "llm-config", baseUrlLabel: "API Base URL", apiKeyLabel: "API Key", buttonLabel: "Save & Configure"
+    // Create a simplified configuration modal for API settings only
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'llmConfigModal';
+    modal.tabIndex = -1;
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Configure AI Provider</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    ${autoShow ? '<div class="alert alert-info"><i class="bi bi-info-circle"></i> Please configure your AI provider to get started</div>' : ''}
+                    
+                    <div class="mb-3">
+                        <label for="apiBaseUrl" class="form-label fw-bold">API Base URL</label>
+                        <select class="form-select mb-2" id="baseUrlSelect">
+                            <option value="">Select a provider...</option>
+                            <option value="https://api.openai.com/v1">OpenAI</option>
+                            <option value="https://api.anthropic.com/v1">Anthropic</option>
+                            <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+                            <option value="custom">Custom URL</option>
+                        </select>
+                        <input type="url" class="form-control" id="apiBaseUrl" placeholder="Enter API base URL" 
+                               value="${state.llmConfig?.baseUrl || ''}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="apiKey" class="form-label fw-bold">API Key</label>
+                        <input type="password" class="form-control" id="apiKey" placeholder="Enter your API key" 
+                               value="${state.llmConfig?.apiKey || ''}" required>
+                        <div class="form-text">Your API key is stored locally and never sent to any external servers except the AI provider you specify.</div>
+                    </div>
+                    
+                    <div class="alert alert-light">
+                        <i class="bi bi-lightbulb"></i> 
+                        <strong>Tip:</strong> Use the separate "Edit Prompt" button to customize how the AI generates summaries from your team updates.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveLLMConfig">Save Configuration</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    // Handle base URL selection
+    document.getElementById('baseUrlSelect').addEventListener('change', (e) => {
+        const apiBaseUrlInput = document.getElementById('apiBaseUrl');
+        if (e.target.value && e.target.value !== 'custom') {
+            apiBaseUrlInput.value = e.target.value;
+        }
+        if (e.target.value === 'custom') {
+            apiBaseUrlInput.focus();
+        }
     });
     
-    save('llm-config', state.llmConfig);
-    showAlert('LLM configuration saved successfully');
-    updateUI();
-    configBtn.disabled = false;
+    // Set initial base URL selection
+    const baseUrlSelect = document.getElementById('baseUrlSelect');
+    const currentBaseUrl = state.llmConfig?.baseUrl || '';
+    const predefinedUrls = ['https://api.openai.com/v1', 'https://api.anthropic.com/v1', 'https://openrouter.ai/api/v1'];
+    if (predefinedUrls.includes(currentBaseUrl)) {
+        baseUrlSelect.value = currentBaseUrl;
+    } else if (currentBaseUrl) {
+        baseUrlSelect.value = 'custom';
+    }
+    
+    // Save functionality
+    document.getElementById('saveLLMConfig').onclick = () => {
+        const baseUrl = document.getElementById('apiBaseUrl').value.trim();
+        const apiKey = document.getElementById('apiKey').value.trim();
+        
+        if (!baseUrl || !apiKey) {
+            showToast('Please fill in all required fields', 'danger');
+            return;
+        }
+        
+        // Preserve existing prompt if available, otherwise use default
+        const existingPrompt = state.llmConfig?.summaryPrompt || state.prompts.summaryGeneration || '';
+        
+        // Save configuration
+        state.llmConfig = {
+            baseUrl,
+            apiKey,
+            summaryPrompt: existingPrompt
+        };
+        
+        save('llm-config', state.llmConfig);
+        bootstrapModal.hide();
+        showAlert('LLM configuration saved successfully');
+        updateUI();
+    };
+    
+    // Clean up modal when hidden - handle both close methods
+    modal.addEventListener('hidden.bs.modal', () => {
+        try {
+            document.body.removeChild(modal);
+        } catch (e) {
+            // Modal already removed
+        }
+        if (configBtn) configBtn.disabled = false;
+    });
+    
+    // Also handle modal disposal
+    modal.addEventListener('hide.bs.modal', () => {
+        if (configBtn) configBtn.disabled = false;
+    });
 };
 
 // Shared function for adding updates
@@ -163,14 +266,19 @@ const generateSummary = async () => {
 const streamLLMResponse = async () => {
     let fullContent = '', previousContent = '';
 
-    if (!state.prompts.summaryGeneration) {
-        state.prompts.summaryGeneration = await loadText('./prompts/summary-generation.md');
+    // Use the custom prompt from config, or load default if not available
+    let summaryPrompt = state.llmConfig?.summaryPrompt;
+    if (!summaryPrompt) {
+        if (!state.prompts.summaryGeneration) {
+            state.prompts.summaryGeneration = await loadText('./prompts/summary-generation.md');
+        }
+        summaryPrompt = state.prompts.summaryGeneration;
     }
 
     const updatesText = state.updates.map(({ teamName, period, timestamp, content }) => 
         `**Team: ${teamName}** (${period})\nDate: ${new Date(timestamp).toLocaleDateString()}\n${content}\n\n`).join('');
 
-    const prompt = state.prompts.summaryGeneration.replace('{{UPDATES_CONTENT}}', updatesText);
+    const prompt = summaryPrompt.replace('{{UPDATES_CONTENT}}', updatesText);
 
     state.streamingContent = { summary: '', nextSteps: '', risks: [], milestones: [], pmTeam: '', sponsor: '' };
 
@@ -758,8 +866,22 @@ window.editContent = (elementId, field) => {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="form-text">You can use Markdown formatting (e.g., **bold**, *italic*, - lists)</div>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-success btn-sm" id="expandBtn" ${!state.llmConfig ? 'disabled' : ''}>
+                                <i class="bi bi-arrows-expand"></i> Expand
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="shortenBtn" ${!state.llmConfig ? 'disabled' : ''}>
+                                <i class="bi bi-scissors"></i> Shorten
+                            </button>
+                        </div>
+                    </div>
                     <textarea class="form-control" id="editTextarea" rows="8" placeholder="Enter content (Markdown supported)...">${currentValue}</textarea>
-                    <div class="form-text mt-2">You can use Markdown formatting (e.g., **bold**, *italic*, - lists)</div>
+                    <div class="mt-2">
+                        <small class="text-muted">Word count: <span id="wordCount">0</span></small>
+                        ${!state.llmConfig ? '<div class="text-warning small mt-1"><i class="bi bi-exclamation-triangle"></i> Configure LLM to enable expand/shorten features</div>' : ''}
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -775,8 +897,164 @@ window.editContent = (elementId, field) => {
     
     // Focus textarea after modal is shown
     modal.addEventListener('shown.bs.modal', () => {
-        document.getElementById('editTextarea').focus();
+        const textarea = document.getElementById('editTextarea');
+        textarea.focus();
+        updateWordCount();
     });
+    
+    // Word count functionality
+    const updateWordCount = () => {
+        const textarea = document.getElementById('editTextarea');
+        const wordCountSpan = document.getElementById('wordCount');
+        if (textarea && wordCountSpan) {
+            const text = textarea.value.trim();
+            const wordCount = text ? text.split(/\s+/).length : 0;
+            wordCountSpan.textContent = wordCount;
+        }
+    };
+    
+    // Add word count listener
+    document.getElementById('editTextarea').addEventListener('input', updateWordCount);
+    
+    // Expand functionality
+    const expandBtn = document.getElementById('expandBtn');
+    if (expandBtn && state.llmConfig) {
+        expandBtn.onclick = async () => {
+            const textarea = document.getElementById('editTextarea');
+            const currentText = textarea.value.trim();
+            
+            if (!currentText) {
+                showToast('No content to expand', 'warning');
+                return;
+            }
+            
+            // Show loading state
+            expandBtn.disabled = true;
+            expandBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Expanding...';
+            
+            try {
+                // Load the original prompt if not already loaded
+                if (!state.prompts.summaryGeneration) {
+                    state.prompts.summaryGeneration = await loadText('./prompts/summary-generation.md');
+                }
+                
+                // Get the original team updates for context
+                const updatesText = state.updates.map(({ teamName, period, timestamp, content }) => 
+                    `**Team: ${teamName}** (${period})\nDate: ${new Date(timestamp).toLocaleDateString()}\n${content}\n\n`).join('');
+                
+                const prompt = `Based on the following team updates and the current ${field} content, please expand and provide more detailed information while maintaining the same format and style:
+
+TEAM UPDATES:
+${updatesText}
+
+CURRENT ${field.toUpperCase()} CONTENT:
+${currentText}
+
+INSTRUCTIONS:
+Please expand the current content by approximately 25% with more specific details, examples, and context from the team updates. Keep the expansion moderate - add relevant specifics that would be valuable for stakeholders while maintaining the same structure and format. Do not completely rewrite the content, just enhance it with additional relevant details and context.`;
+
+                // Use non-streaming API call
+                const response = await fetch(`${state.llmConfig.baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${state.llmConfig.apiKey}` 
+                    },
+                    body: JSON.stringify({ 
+                        model: 'gpt-4o', 
+                        stream: false,
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const expandedContent = data.choices[0]?.message?.content || '';
+                
+                if (expandedContent) {
+                    textarea.value = expandedContent;
+                    updateWordCount();
+                    showToast('Content expanded successfully!', 'success');
+                } else {
+                    throw new Error('No content received from API');
+                }
+                
+            } catch (error) {
+                console.error('Error expanding content:', error);
+                showToast('Failed to expand content. Please try again.', 'danger');
+            } finally {
+                // Restore button state
+                expandBtn.disabled = false;
+                expandBtn.innerHTML = '<i class="bi bi-arrows-expand"></i> Expand';
+            }
+        };
+    }
+
+    // Shorten/Summarize functionality
+    const shortenBtn = document.getElementById('shortenBtn');
+    if (shortenBtn && state.llmConfig) {
+        shortenBtn.onclick = async () => {
+            const textarea = document.getElementById('editTextarea');
+            const currentText = textarea.value.trim();
+            
+            if (!currentText) {
+                showToast('No content to shorten', 'warning');
+                return;
+            }
+            
+            // Show loading state
+            shortenBtn.disabled = true;
+            shortenBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Shortening...';
+            
+            try {
+                const prompt = `Please shorten and summarize the following content while preserving the key information and maintaining the same format/style. Keep it concise but comprehensive:
+
+${currentText}
+
+Please provide a shortened version that maintains the essential points but reduces the overall length by approximately 30-50%.`;
+
+                // Use non-streaming API call to avoid content duplication issues
+                const response = await fetch(`${state.llmConfig.baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': `Bearer ${state.llmConfig.apiKey}` 
+                    },
+                    body: JSON.stringify({ 
+                        model: 'gpt-4o', 
+                        stream: false, // Non-streaming to get complete response
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const shortenedContent = data.choices[0]?.message?.content || '';
+                
+                if (shortenedContent) {
+                    textarea.value = shortenedContent;
+                    updateWordCount();
+                    showToast('Content shortened successfully!', 'success');
+                } else {
+                    throw new Error('No content received from API');
+                }
+                
+            } catch (error) {
+                console.error('Error shortening content:', error);
+                showToast('Failed to shorten content. Please try again.', 'danger');
+            } finally {
+                // Restore button state
+                shortenBtn.disabled = false;
+                shortenBtn.innerHTML = '<i class="bi bi-scissors"></i> Shorten';
+            }
+        };
+    }
     
     // Save functionality
     document.getElementById('saveEditBtn').onclick = () => {
@@ -1042,14 +1320,285 @@ User training completion | 2024-02-15 | In progress`;
     });
 };
 
+// Edit Prompt functionality - Separate modal for prompt editing  
+const editPrompt = async () => {
+    const editPromptBtn = $('edit-prompt-btn');
+    if (editPromptBtn) {
+        editPromptBtn.disabled = true;
+    }
+    
+    // Get current prompt - use saved one or default
+    let currentPrompt = state.llmConfig?.summaryPrompt || state.prompts.summaryGeneration || '';
+    
+    // Create dedicated prompt editing modal
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'promptEditModal';
+    modal.tabIndex = -1;
+    modal.innerHTML = `
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil-square me-2"></i>Edit AI Summary Generation Prompt
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Instructions:</strong> Customize how the AI generates summaries from your team updates. 
+                        Use <code>{{UPDATES_CONTENT}}</code> as a placeholder where team updates will be inserted.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="resetPromptBtn">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset to Default
+                                </button>
+                                <button type="button" class="btn btn-outline-info btn-sm" id="previewPromptBtn">
+                                    <i class="bi bi-eye"></i> Preview
+                                </button>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">Characters: <span id="promptCharCount" class="fw-bold">0</span></small><br>
+                                <small class="text-muted">Lines: <span id="promptLineCount" class="fw-bold">0</span></small>
+                            </div>
+                        </div>
+                        
+                        <textarea class="form-control" id="promptEditor" rows="20" 
+                                  style="font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.4;"
+                                  placeholder="Enter your custom prompt here...">${currentPrompt}</textarea>
+                        
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="bi bi-lightbulb"></i> 
+                                <strong>Tip:</strong> Your prompt should include instructions for generating JSON with fields like 
+                                "summary", "nextSteps", "risks", "milestones", etc.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="savePromptBtn">
+                        <i class="bi bi-check-circle"></i> Save Prompt
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    // Update character and line count
+    const updateCounts = () => {
+        const textarea = document.getElementById('promptEditor');
+        const charCountSpan = document.getElementById('promptCharCount');
+        const lineCountSpan = document.getElementById('promptLineCount');
+        if (textarea && charCountSpan && lineCountSpan) {
+            charCountSpan.textContent = textarea.value.length;
+            lineCountSpan.textContent = textarea.value.split('\n').length;
+        }
+    };
+    
+    // Add listeners
+    document.getElementById('promptEditor').addEventListener('input', updateCounts);
+    updateCounts(); // Initial count
+    
+    // Reset to default functionality
+    document.getElementById('resetPromptBtn').onclick = () => {
+        if (confirm('Are you sure you want to reset the prompt to the default version? This will overwrite your current changes.')) {
+            document.getElementById('promptEditor').value = state.prompts.summaryGeneration || '';
+            updateCounts();
+            showToast('Prompt reset to default', 'info');
+        }
+    };
+    
+    // Preview functionality
+    document.getElementById('previewPromptBtn').onclick = () => {
+        const promptText = document.getElementById('promptEditor').value;
+        if (!promptText.trim()) {
+            showToast('No prompt content to preview', 'warning');
+            return;
+        }
+        
+        // Create preview modal
+        const previewModal = document.createElement('div');
+        previewModal.className = 'modal fade';
+        previewModal.id = 'promptPreviewModal';
+        previewModal.tabIndex = -1;
+        previewModal.innerHTML = `
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-eye me-2"></i>Prompt Preview
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> This is how your prompt will appear when sent to the AI model.
+                        </div>
+                        <pre style="background-color: #f8f9fa; padding: 1.5rem; border-radius: 0.5rem; white-space: pre-wrap; font-size: 13px; max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6;">${promptText}</pre>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(previewModal);
+        const previewBootstrapModal = new bootstrap.Modal(previewModal);
+        previewBootstrapModal.show();
+        
+        // Clean up preview modal when hidden
+        previewModal.addEventListener('hidden.bs.modal', () => {
+            document.body.removeChild(previewModal);
+        });
+    };
+    
+
+    
+    // Save functionality
+    document.getElementById('savePromptBtn').onclick = () => {
+        const promptText = document.getElementById('promptEditor').value.trim();
+        
+        if (!promptText) {
+            showToast('Please provide a prompt before saving', 'warning');
+            return;
+        }
+        
+        if (!promptText.includes('{{UPDATES_CONTENT}}')) {
+            if (!confirm('Your prompt doesn\'t include {{UPDATES_CONTENT}} placeholder. This means team updates won\'t be included in the AI request. Continue anyway?')) {
+                return;
+            }
+        }
+        
+        // Save to current session (will be saved to localStorage when LLM config is saved)
+        if (!state.llmConfig) {
+            state.llmConfig = {};
+        }
+        state.llmConfig.summaryPrompt = promptText;
+        save('llm-config', state.llmConfig);
+        
+        bootstrapModal.hide();
+        showToast('Prompt saved successfully! It will be used for future AI summaries.', 'success');
+        updateUI();
+    };
+    
+    // Clean up modal when hidden - handle both close methods
+    modal.addEventListener('hidden.bs.modal', () => {
+        try {
+            document.body.removeChild(modal);
+        } catch (e) {
+            // Modal already removed
+        }
+        if (editPromptBtn) editPromptBtn.disabled = false;
+    });
+    
+    // Also handle modal disposal
+    modal.addEventListener('hide.bs.modal', () => {
+        if (editPromptBtn) editPromptBtn.disabled = false;
+    });
+};
+
 const init = async () => {
-    $('config-btn').addEventListener('click', () => configureLLM(true));
-    $('export-btn').addEventListener('click', exportToPPTX);
-    $('update-form').addEventListener('submit', handleUpdateSubmit);
-    $('modal-submit-btn').addEventListener('click', handleModalSubmit);
-    $('page-title').addEventListener('click', resetToInitialState);
-    updateUI();
-    if (!state.llmConfig) await configureLLM(true);
+    // Load default prompt at startup
+    try {
+        state.prompts.summaryGeneration = await loadText('./prompts/summary-generation.md');
+    } catch (error) {
+        console.error('Failed to load default prompt:', error);
+        showToast('Failed to load default prompt. Please check the file.', 'warning');
+    }
+    
+    // Add error handling for button event listeners
+    try {
+        const configBtn = $('config-btn');
+        if (configBtn) {
+            configBtn.addEventListener('click', () => {
+                try {
+                    configureLLM(false);
+                } catch (error) {
+                    console.error('Error in configureLLM:', error);
+                    showToast('Error opening configuration modal', 'danger');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error setting up config button:', error);
+    }
+    
+    try {
+        const editPromptBtn = $('edit-prompt-btn');
+        if (editPromptBtn) {
+            editPromptBtn.addEventListener('click', () => {
+                try {
+                    editPrompt();
+                } catch (error) {
+                    console.error('Error in editPrompt:', error);
+                    showToast('Error opening prompt editor', 'danger');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error setting up edit prompt button:', error);
+    }
+    
+    try {
+        const exportBtn = $('export-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', exportToPPTX);
+        }
+    } catch (error) {
+        console.error('Error setting up export button:', error);
+    }
+    
+    try {
+        const updateForm = $('update-form');
+        if (updateForm) {
+            updateForm.addEventListener('submit', handleUpdateSubmit);
+        }
+    } catch (error) {
+        console.error('Error setting up update form:', error);
+    }
+    
+    try {
+        const modalSubmitBtn = $('modal-submit-btn');
+        if (modalSubmitBtn) {
+            modalSubmitBtn.addEventListener('click', handleModalSubmit);
+        }
+    } catch (error) {
+        console.error('Error setting up modal submit button:', error);
+    }
+    
+    try {
+        const pageTitle = $('page-title');
+        if (pageTitle) {
+            pageTitle.addEventListener('click', resetToInitialState);
+        }
+    } catch (error) {
+        console.error('Error setting up page title:', error);
+    }
+    
+    try {
+        updateUI();
+    } catch (error) {
+        console.error('Error updating UI:', error);
+    }
+    
+    try {
+        if (!state.llmConfig) {
+            await configureLLM(true);
+        }
+    } catch (error) {
+        console.error('Error in initial LLM configuration:', error);
+    }
 };
 
 document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
